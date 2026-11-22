@@ -838,7 +838,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       });
       var tk = ln.s.split(/\s+/);
       for (var a = 0; a < tk.length; a++) for (var b = a + 1; b < Math.min(tk.length, a + 4); b++) {
-        var seg = tk.slice(a, b + 1), joined = seg.join("").replace(/(은|는|이|가|을|를|의|에|에서|에서는|도|와|과|랑|이랑|로|으로|만|까지)$/, "");
+        var seg = tk.slice(a, b + 1), raw = seg.join(""), joined = DEPTS.indexOf(raw) >= 0 ? raw : raw.replace(/(은|는|이|가|을|를|의|에|에서|에서는|도|와|과|랑|이랑|로|으로|만|까지)$/, "");
         if (DEPTS.indexOf(joined) >= 0 && !seen["s" + joined]) {
           seen["s" + joined] = 1; var wf = seg.join(" ");
           found.push({ t: ln.t, from: wf, to: joined, pre: "", post: "", wf: wf, wt: seg.join("").trim(), why: "학과 이름은 조직도 표기대로 붙여 써요", lv: "bad" });
