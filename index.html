@@ -170,7 +170,8 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     right: [0.855, 0.385, 1, 0.944, "오른쪽 좋아요·공유 버튼"],
     bottom: [0, 0.79, 0.733, 0.958, "아래 계정 이름·캡션"],
     left: [0, 0, 0.044, 1, "왼쪽 끝(잘림)"],
-    rightEdge: [0.962, 0, 1, 0.385, "오른쪽 끝(잘림)"]
+    rightEdge: [0.962, 0, 1, 0.385, "오른쪽 끝(잘림)"],
+    subR: [0.855, 0.667, 0.97, 0.77, "오른쪽 좋아요·공유 버튼(자막 끝)"]   // 자막 줄 높이(BAND.v ± 0.01)만
   };
   var RED = [[0.05, 0.125], [0.955, 0.125], [0.955, 0.385], [0.855, 0.385], [0.855, 0.79], [0.05, 0.79]];
   var YEL = [0.06, 0.14, 0.94, 0.65];
@@ -408,6 +409,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     return all ? hit / all : 0;
   }
   var ZT = 0.004;   // 가림 영역 글자 획 기준
+  var SUBRT = 0.008;   // 자막 끝이 버튼 줄로 넘어간 것 기준
   var lastVert = true, subRatio = 1;
   var TXT = 0.006;   // 글자 판정 기준(2026-11-21 숏폼 2편: 자막 장면 0.014~0.09, 없는 장면 0~0.0014)
 
@@ -418,13 +420,17 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       f.flags = [];
       // 양 끝 잘림 띠(4%)는 좁아서 배경 포스터·무늬 글자에도 걸린다 → 선만 그리고 판정은 안 한다(2026-11-22 담당자 오탐 제보)
       if (vert) Object.keys(Z).forEach(function (k) {
-        if (k === "left" || k === "rightEdge") return;
+        if (k === "left" || k === "rightEdge" || k === "subR") return;
         if (strokeDensity(f, Z[k]) > ZT) f.flags.push(k);
       });
+      // 긴 자막의 오른쪽 끝이 좋아요·공유 버튼 줄로 넘어감: 자막 줄 높이만 따로 본다(넓은 버튼 영역 전체로 재면 한두 글자는 묻힘).
+      // 바로 왼쪽(0.79~0.855)에도 글자가 이어져 있어야 자막으로 본다(2026-11-22 지난 검수 대조: 놓친 「꼭」 가림 4건이 모두 이 경우)
+      if (vert && f.band > TXT && f.flags.indexOf("right") < 0 && strokeDensity(f, Z.subR) > SUBRT && strokeDensity(f, [0.79, Z.subR[1], 0.855, Z.subR[3]]) > SUBRT) f.flags.push("subR");
     });
     var ratio = sub / fr.length; subRatio = ratio; var wantSub = !/무자막|자막\s?X|노자막/i.test(name);
     if (wantSub) {
-      if (ratio < 0.15) add("bad", "자막이 거의 안 보여요", "홍보대사 영상은 대사 자막이 꼭 있어야 해요 · 자막이 있는데 이렇게 나오면 자막 자리가 가이드보다 많이 위·아래인지 봐 주세요");
+      // 20초 미만은 대사 없는 짧은 클립(과잠 소개 등)일 수 있어 확인으로(2026-11-22 지난 검수 대조)
+      if (ratio < 0.15) add(video.duration < 20 ? "chk" : "bad", "자막이 거의 안 보여요", (video.duration < 20 ? "대사가 있는 영상이면 자막을 꼭 넣어 주세요 · 대사 없는 클립이면 그대로 둬도 돼요" : "홍보대사 영상은 대사 자막이 꼭 있어야 해요") + " · 자막이 있는데 이렇게 나오면 자막 자리가 가이드보다 많이 위·아래인지 봐 주세요");
       else if (ratio < 0.4) add("chk", "자막이 안 보이는 장면이 많아요 (" + Math.round((1 - ratio) * 100) + "%)", "대사가 있는데 자막이 빠진 곳이 없는지 아래 장면에서 확인해 주세요");
       else add("ok", "자막이 보여요", "장면 " + fr.length + "개 중 " + sub + "개에서 자막 자리에 글자가 있어요");
     } else if (ratio > 0.5) add("chk", "무자막 파일인데 자막 자리에 글자가 보여요", "자막을 끄고 내보냈는지 확인해 주세요");
@@ -458,7 +464,8 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       runs.forEach(function (r) {
         var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t, names = Object.keys(r.zones).map(function (k) { return Z[k][4]; }).join(" · ");
         var pick = r.fs.length <= 4 ? r.fs : [r.fs[0], r.fs[Math.floor(r.fs.length / 3)], r.fs[Math.floor(r.fs.length * 2 / 3)], r.fs[r.fs.length - 1]];
-        add(r.fs.length >= 2 ? "bad" : "chk", (a === b ? fmt(a) : fmt(a) + "~" + fmt(b)) + " · " + names + " 쪽에 글자가 있어요",
+        // 꼭(✕)은 자막 끝이 버튼 줄로 넘어간 것만. 넓은 가림 영역 판정은 흰 배경·노트북에도 걸려 확인(!)으로(2026-11-22 지난 검수 대조)
+        add(r.zones.subR && r.fs.length >= 1 ? "bad" : "chk", (a === b ? fmt(a) : fmt(a) + "~" + fmt(b)) + " · " + names + " 쪽에 글자가 있어요",
           "빨간 선 안으로 옮겨 주세요 · 글자가 아니라 배경이면 그대로 둬도 돼요",
           pick.map(function (f) { return { src: thumb(f, true), t: f.t, flags: f.flags }; }));
       });
@@ -577,7 +584,8 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     else run(f);
   });
 
-  // ── 자막 읽기: tesseract.js(한국어, 브라우저 안에서 돎). 숏폼 0.75초·롱폼 1초 간격, 최대 160번
+  // ── 자막 읽기: tesseract.js(한국어, 브라우저 안에서 돎). 0.6초마다 자막 자리를 보고, 자막이 바뀐 장면만 읽는다
+  //    (2026-11-22 지난 검수 18개 대조: 롱폼을 3초 간격으로 보던 때는 1~2초 자막을 건너뛰어 「꼭」 오탈자 21개 중 4개만 잡음)
   //    같은 자막이 이어지면 한 번만 적고, 흐리게 읽힌 줄(신뢰도 70 아래)은 규칙 점검에서 뺀다(잘못 읽은 걸 틀렸다고 하지 않게)
   var ocrP = null;
   function ocrWorker() {
@@ -599,72 +607,143 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     var han = (s.match(/[가-힣]/g) || []).length, junk = (s.match(/[^가-힣A-Za-z0-9\s.,!?~|:()「」"'…\-]/g) || []).length;
     return conf >= 75 && han >= 2 && junk / Math.max(1, s.length) < 0.12;
   }
+  // 자막 자리의 「흰 글자 모양」 지문: 96×10칸마다 밝고 색 없는 점의 개수. 칸이 굵으면 길이가 비슷한 다른 자막도 같게 보여
+  //  건너뛰므로(2026-11-22 「자켓」 자막을 놓침) 개수로 비교한다
+  function bandSig(f, b) {
+    var GX = 96, GY = 10, x0 = Math.round(b[0] * f.w), x1 = Math.round(b[2] * f.w), y0 = Math.round(b[1] * f.h), y1 = Math.round(b[3] * f.h), s = new Uint16Array(GX * GY), d = f.data.data;
+    for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) {
+      var o = (y * f.w + x) * 4, mn = Math.min(d[o], d[o + 1], d[o + 2]), mx = Math.max(d[o], d[o + 1], d[o + 2]);
+      if (mn >= 190 && mx - mn <= 40) s[Math.min(GY - 1, Math.floor((y - y0) / (y1 - y0) * GY)) * GX + Math.min(GX - 1, Math.floor((x - x0) / (x1 - x0) * GX))]++;
+    }
+    return s;
+  }
+  function sigDiff(a, b) { var df = 0, sum = 0; for (var i = 0; i < a.length; i++) { df += Math.abs(a[i] - b[i]); sum += a[i] + b[i]; } return sum ? df / sum : 0; }
   function readSubs(my, vert) {
-    var d = video.duration, n = Math.min(160, Math.max(1, Math.floor(d / (vert ? 0.75 : 1)))), step = d / n;
+    var d = video.duration, lastSig = null, nOcr = 0, reachedT = 0;
     var band = vert ? BAND.v : BAND.h, cw = vert ? SW : 960, ch = vert ? 960 : 540;
     var sm = document.createElement("canvas"); sm.width = cw; sm.height = ch; var sx = sm.getContext("2d", { willReadFrequently: true });
-    var crop = document.createElement("canvas"), cx = crop.getContext("2d");
-    var order = [], best = {}, i = 0, wk;
+    var order = [], best = {}, wk;
     prog("prep", 0.88, "처음 한 번은 글자 읽기 도구를 받아요");
     return ocrWorker().then(function (w) {
       wk = w;
-      function one() {
-        if (my !== token || i >= n || skipOcr) return Promise.resolve();
-        var t = (i + 0.5) * step; i++;
-        prog("ocr", 0.88 + 0.12 * i / n, "자막 자리 " + i + "/" + n);
-        return seek(t).then(function () {
-          sx.drawImage(video, 0, 0, cw, ch);
-          if (textDensity({ data: sx.getImageData(0, 0, cw, ch), w: cw, h: ch }, band) <= TXT) return one();
-          var vw = video.videoWidth, vh = video.videoHeight;
-          var x0 = (band[0] - 0.03) * vw, y0 = (band[1] - 0.012) * vh, ww = (band[2] - band[0] + 0.06) * vw, hh = (band[3] - band[1] + 0.024) * vh;
-          var k = Math.min(1, 1400 / ww); crop.width = Math.round(ww * k); crop.height = Math.round(hh * k);
-          cx.drawImage(video, x0, y0, ww, hh, 0, 0, crop.width, crop.height);
-          var shot = crop.toDataURL("image/jpeg", 0.75);
-          // 흰 글자만 남기기: 밝고 색이 없는 점 중 가까이에 어두운 점이 있는 것(글자 획)만. 넓은 흰 면(노트북·벽)은 지운다(2026-11-22)
-          var CW = crop.width, CH = crop.height, id = cx.getImageData(0, 0, CW, CH), px = id.data, L = new Float32Array(CW * CH), on = new Uint8Array(CW * CH);
-          for (var q = 0, n2 = 0; q < px.length; q += 4, n2++) {
-            var mn = Math.min(px[q], px[q + 1], px[q + 2]), mx = Math.max(px[q], px[q + 1], px[q + 2]);
-            L[n2] = (px[q] + px[q + 1] + px[q + 2]) / 3; on[n2] = mn >= 172 && mx - mn <= 45 ? 1 : 0;
-          }
-          var R = Math.max(4, Math.round(CH * 0.09));
-          for (var yy = 0; yy < CH; yy++) for (var xx = 0; xx < CW; xx++) {
-            var o = yy * CW + xx, keep = 0;
-            if (on[o]) {
-              var lv = L[o] - 55, l = 0, r = 0, u = 0, dn = 0;
-              for (var s2 = 1; s2 <= R; s2++) {
-                if (!l && xx - s2 >= 0 && L[o - s2] < lv) l = 1;
-                if (!r && xx + s2 < CW && L[o + s2] < lv) r = 1;
-                if (!u && yy - s2 >= 0 && L[o - s2 * CW] < lv) u = 1;
-                if (!dn && yy + s2 < CH && L[o + s2 * CW] < lv) dn = 1;
-              }
-              keep = (l && r) || (u && dn) ? 1 : 0;
+      // 2026-11-23 담당자 「속도가 줄어야지」: 장면마다 건너뛰기(seek)는 4K 롱폼에서 한 번에 0.3초쯤 걸려 12분 영상이 6~7분 걸렸다.
+      //   → 소리 끄고 8배속으로 재생하면서 0.6초마다 자막 자리를 보고, 바뀐 장면만 떠서 줄에 넣고, 읽기는 재생과 따로 차례로 한다.
+      //   재생이 안 되는 기기(rVFC 없음·재생 거부·8초 넘게 멈춤)는 예전처럼 한 장면씩 건너뛴다.
+      var queue = [], ocrBusy = false, scanDone = false, waitQ = null, pausedQ = false, playing = false;
+      function grab(t) {
+        reachedT = t;
+        sx.drawImage(video, 0, 0, cw, ch);
+        var fd = { data: sx.getImageData(0, 0, cw, ch), w: cw, h: ch };
+        if (textDensity(fd, band) <= TXT) { lastSig = null; return; }
+        var sig = bandSig(fd, band);
+        if (lastSig && sigDiff(sig, lastSig) < 0.2) return;   // 바로 앞에 뜬 자막과 같으면 건너뜀
+        lastSig = sig; nOcr++;
+        var vw = video.videoWidth, vh = video.videoHeight;
+        var x0 = (band[0] - 0.03) * vw, y0 = (band[1] - 0.012) * vh, ww = (band[2] - band[0] + 0.06) * vw, hh = (band[3] - band[1] + 0.024) * vh;
+        var k = Math.min(1, 1400 / ww), c = document.createElement("canvas"); c.width = Math.round(ww * k); c.height = Math.round(hh * k);
+        c.getContext("2d").drawImage(video, x0, y0, ww, hh, 0, 0, c.width, c.height);
+        queue.push({ t: t, c: c });
+        if (playing && queue.length >= 20) { pausedQ = true; video.pause(); }   // 읽기가 밀리면 재생을 잠깐 멈춤(메모리)
+        pump();
+      }
+      function pump() {
+        if (my !== token || skipOcr) queue.length = 0;
+        if (pausedQ && queue.length <= 4 && my === token && !skipOcr) { pausedQ = false; video.play().catch(function () {}); }
+        if (ocrBusy) return;
+        if (!queue.length) { if (scanDone && waitQ) { var f = waitQ; waitQ = null; f(); } return; }
+        ocrBusy = true; var job = queue.shift();
+        readOne(job).then(function () { ocrBusy = false; pump(); }, function () { ocrBusy = false; pump(); });
+      }
+      function readOne(job) {
+        var t = job.t, crop = job.c, cx = crop.getContext("2d", { willReadFrequently: true });
+        var shot = crop.toDataURL("image/jpeg", 0.75);
+        // 흰 글자만 남기기: 밝고 색이 없는 점 중 가까이에 어두운 점이 있는 것(글자 획)만. 넓은 흰 면(노트북·벽)은 지운다(2026-11-22)
+        var CW = crop.width, CH = crop.height, id = cx.getImageData(0, 0, CW, CH), px = id.data, L = new Float32Array(CW * CH), on = new Uint8Array(CW * CH);
+        for (var q = 0, n2 = 0; q < px.length; q += 4, n2++) {
+          var mn = Math.min(px[q], px[q + 1], px[q + 2]), mx = Math.max(px[q], px[q + 1], px[q + 2]);
+          L[n2] = (px[q] + px[q + 1] + px[q + 2]) / 3; on[n2] = mn >= 172 && mx - mn <= 45 ? 1 : 0;
+        }
+        var R = Math.max(4, Math.round(CH * 0.09));
+        for (var yy = 0; yy < CH; yy++) for (var xx = 0; xx < CW; xx++) {
+          var o = yy * CW + xx, keep = 0;
+          if (on[o]) {
+            var lv = L[o] - 55, l = 0, r = 0, u = 0, dn = 0;
+            for (var s2 = 1; s2 <= R; s2++) {
+              if (!l && xx - s2 >= 0 && L[o - s2] < lv) l = 1;
+              if (!r && xx + s2 < CW && L[o + s2] < lv) r = 1;
+              if (!u && yy - s2 >= 0 && L[o - s2 * CW] < lv) u = 1;
+              if (!dn && yy + s2 < CH && L[o + s2 * CW] < lv) dn = 1;
             }
-            var v = keep ? 0 : 255, q2 = o * 4; px[q2] = px[q2 + 1] = px[q2 + 2] = v;
+            keep = (l && r) || (u && dn) ? 1 : 0;
           }
-          cx.putImageData(id, 0, 0);
-          return wk.recognize(crop, {}, { text: true, blocks: true }).then(function (r) {
-            (r.data.blocks || []).forEach(function (bl) { (bl.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(function (ln) {
-              var s = cleanLine(ln.text || "");
-              if (!goodLine(s, ln.confidence)) return;
-              var key = s.replace(/[^가-힣A-Za-z0-9]/g, ""), sc = ln.confidence + 1.5 * (s.match(/ /g) || []).length;
-              var low = (ln.words || []).filter(function (w) { return w.confidence < 80; }).map(function (w) { return w.text.replace(/[^가-힣A-Za-z0-9]/g, ""); }).filter(Boolean);
-              // 같은 자막을 여러 번 읽었으면: 더 길게(덜 잘리게) 읽은 쪽, 길이가 비슷하면 더 확실하게 읽은 쪽 하나만 남긴다(2026-11-22)
-              var near = best[key] ? key : order.filter(function (o) { return Math.abs(o.length - key.length) <= 6 && (o.indexOf(key) >= 0 || key.indexOf(o) >= 0 || (key.length >= 6 && lev(o, key) <= Math.max(2, Math.round(key.length * 0.2)))); })[0];
-              if (!near) { best[key] = { t: t, s: s, img: shot, sc: sc, low: low }; order.push(key); return; }
-              var g = best[near], longer = key.length >= near.length + 3, shorter = near.length >= key.length + 3;
-              if (shorter || (!longer && sc <= g.sc)) return;
-              delete best[near]; best[key] = { t: g.t, s: s, img: g.img, sc: sc, low: low }; order[order.indexOf(near)] = key;
-            }); }); });
-            return one();
-          }, function () { return one(); });
+          var v = keep ? 0 : 255, q2 = o * 4; px[q2] = px[q2 + 1] = px[q2 + 2] = v;
+        }
+        cx.putImageData(id, 0, 0);
+        return wk.recognize(crop, {}, { text: true, blocks: true }).then(function (r) {
+          (r.data.blocks || []).forEach(function (bl) { (bl.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(function (ln) {
+            var s = cleanLine(ln.text || "");
+            if (!goodLine(s, ln.confidence)) return;
+            var key = s.replace(/[^가-힣A-Za-z0-9]/g, ""), sc = ln.confidence + 1.5 * (s.match(/ /g) || []).length;
+            var low = (ln.words || []).filter(function (w) { return w.confidence < 80; }).map(function (w) { return w.text.replace(/[^가-힣A-Za-z0-9]/g, ""); }).filter(Boolean);
+            // 같은 자막을 여러 번 읽었으면: 더 길게(덜 잘리게) 읽은 쪽, 길이가 비슷하면 더 확실하게 읽은 쪽 하나만 남긴다(2026-11-22)
+            var near = best[key] ? key : order.filter(function (o) { return Math.abs(o.length - key.length) <= 6 && (o.indexOf(key) >= 0 || key.indexOf(o) >= 0 || (key.length >= 6 && lev(o, key) <= Math.max(2, Math.round(key.length * 0.2)))); })[0];
+            if (!near) { best[key] = { t: t, s: s, img: shot, sc: sc, low: low }; order.push(key); return; }
+            var g = best[near], longer = key.length >= near.length + 3, shorter = near.length >= key.length + 3;
+            if (shorter || (!longer && sc <= g.sc)) return;
+            delete best[near]; best[key] = { t: g.t, s: s, img: g.img, sc: sc, low: low }; order[order.indexOf(near)] = key;
+          }); }); });
         });
       }
-      return one();
+      function showProg(t) { prog("ocr", 0.88 + 0.12 * Math.min(1, t / d), "자막 자리 " + fmt(t) + " / " + fmt(d)); }
+      // 빠른 길: 8배속 재생
+      function scanPlay() {
+        return new Promise(function (res) {
+          if (!video.requestVideoFrameCallback) return res(false);
+          var done = false, lastT = -1, lastCur = -1, stallN = 0, watch, prevT = -1, bigGap = 0;
+          function fin(ok) { if (done) return; done = true; playing = false; pausedQ = false; clearInterval(watch); video.onended = null; video.pause(); video.playbackRate = 1; res(ok); }
+          function onFrame(now, meta) {
+            if (done) return;
+            if (my !== token || skipOcr) return fin(true);
+            var t = meta.mediaTime;
+            // 기기가 못 따라가 장면이 0.45초 넘게 건너뛰면 재생 속도를 반으로(최저 2배속). 4K는 8배속에서 장면을 버린다
+            if (prevT >= 0 && t - prevT > 0.45) { if (++bigGap >= 2 && video.playbackRate > 2) { video.playbackRate = video.playbackRate / 2; bigGap = 0; } } else bigGap = 0;
+            prevT = t;
+            if (lastT < 0 || t - lastT >= 0.6 - 0.001) { lastT = t; grab(t); showProg(t); }
+            video.requestVideoFrameCallback(onFrame);
+          }
+          video.muted = true; video.onended = function () { fin(true); };
+          watch = setInterval(function () {
+            if (my !== token || skipOcr) return fin(true);
+            if (pausedQ) { stallN = 0; return; }
+            if (video.currentTime === lastCur) { if (++stallN >= 8) fin(false); } else { stallN = 0; lastCur = video.currentTime; }
+          }, 1000);
+          seek(0).then(function () {
+            if (done) return;
+            video.playbackRate = 8; playing = true;
+            video.requestVideoFrameCallback(onFrame);
+            video.play().catch(function () { fin(false); });
+          });
+        });
+      }
+      // 느린 길: 한 장면씩 건너뛰기(재생이 안 될 때, 재생이 멈춘 곳부터)
+      function scanSeek(from) {
+        var t = from;
+        function one() {
+          if (my !== token || skipOcr || t >= d) return Promise.resolve();
+          var tt = t; t += 0.6; showProg(tt);
+          return seek(tt).then(function () { grab(tt); return one(); });
+        }
+        return one();
+      }
+      return scanPlay().then(function (ok) { return ok ? null : scanSeek(reachedT > 0 ? reachedT + 0.6 : 0.3); })
+        .then(function () { scanDone = true; return new Promise(function (res) { waitQ = res; pump(); }); });
     }).then(function () {
       if (my !== token) return;
       var lines = order.map(function (k) { return fmt(best[k].t) + " " + best[k].s; });
       $("subs").value = lines.join("\n"); $("subs").dataset.ocr = "1";
       ocrLow = {}; order.forEach(function (k) { ocrLow[best[k].s] = best[k].low || []; });
+      // 장면 판정은 「자막 거의 없음」인데 자막을 2줄 넘게 읽었으면 일부 장면에만 자막이 있는 것 → 확인으로(2026-11-22 겜콘 숏폼)
+      if (lines.length >= 2) items.forEach(function (it) { if (it.title === "자막이 거의 안 보여요") { it.level = "chk"; it.title = "자막이 일부 장면에만 있어요"; it.detail = "대사가 있는데 자막이 빠진 곳이 없는지 확인해 주세요"; } });
       subCheck(); var c = subCheck.last;
       if (!lines.length) { if (subRatio < 0.15) return; add("chk", "자막 글자를 또렷하게 읽지 못했어요", "3번에 자막 글을 직접 붙여 넣으면 점검할 수 있어요"); return; }
       var imgAt = {}; order.forEach(function (k) { imgAt[fmt(best[k].t)] = { src: best[k].img, t: best[k].t }; });
@@ -675,7 +754,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         add(f.lv, f.t + "  " + f.wf + " → " + f.wt, f.why + (f.lv === "chk" ? " (확인)" : ""), g ? [{ src: g.src, t: g.t, sub: true }] : null);
       });
       if (fs.length > MAXF) add("chk", "자막 글 고칠 곳이 " + (fs.length - MAXF) + "개 더 있어요", "3번에서 전부 볼 수 있어요");
-      if (skipOcr && i < n) add("chk", "자막 글은 " + fmt(i * step) + "까지만 읽었어요", "나머지는 3번에 자막 글을 붙여 넣으면 점검할 수 있어요");
+      if (skipOcr && reachedT < d - 1) add("chk", "자막 글은 " + fmt(reachedT) + "까지만 읽었어요", "나머지는 3번에 자막 글을 붙여 넣으면 점검할 수 있어요");
       if (!fs.length) add("ok", "자막 글에서 자주 틀리는 건 안 보여요", "자막 " + lines.length + "줄을 읽었어요 · 짧은 자막(「네?」 같은)은 건너뛰어요");
       $("subHint").textContent = "영상에서 읽은 자막이에요 · 잘못 읽힌 글자는 고친 뒤 「고친 글로 다시 점검」을 눌러 주세요";
     }).catch(function () {
@@ -752,10 +831,16 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     { re: /(출발|질문|준비|시작|도착|정리|소개|설명|공부|연습|체험|운영|참여|참가|클리어|감사|추천|축하|진행|선택|결정|확인|이용|도전|성공|실패|노력|응원|활동|졸업|입학|등장|입장|촬영|요리|운동|등록|신청|합격|발표|인터뷰|게임|대답|공개|구경|산책|데이트|쇼핑|주문|기억|상상|고민|약속|부탁|소통|이야기|얘기|사용|변신|완성|실습|여행|경험|방문|추억|기대|사랑|생각) (하|해|했|할|합|한|하겠|해요|해서)(?=[가-힣\s.,!?~]|$)/g,
       to: function (m) { return m[1] + m[2]; }, why: "「○○하다」는 한 단어라 붙여 써요(출발하겠습니다, 질문할)", lv: "bad",
       when: function (m, s) { var rest = s.slice(m.index + m[0].length); return !(m[2] === "하" && /^나/.test(rest)) && !(m[2] === "한" && /^\s?(번|개|명|마디|가지|잔|살|시간|달|주|해|분|곳|판|장|권|컵|줄|입|번)/.test(rest)); } },
+    // 「척·체」는 의존 명사(이쁜 척하다, 아는 체하다)
+    { re: /([가-힣])(척|체)(하|했|해|할|한|합)/g, to: function (m) { return m[1] + " " + m[2] + m[3]; }, why: "「척」은 앞말과 띄어 써요(이쁜 척하다)", lv: "bad",
+      when: function (m) { var j = jong(m[1]); return (j === 4 || j === 8) && "한" !== m[1]; } },
     // 조사·서술격 조사는 앞말에 붙여 씀(톱으로, 중심이라면, 왕!까지)
     { re: /([가-힣A-Za-z0-9!?]) (으로|으로는|으로도|이라면|이라고|이라서|이라는|인가|인가요|인데|인데요|까지|부터|처럼|에게|한테|이랑|에서|에서는|입니다|이에요|이예요|이었|였어요)(?=[\s.,!?~]|$)/g,
       to: function (m) { return m[1] + m[2]; }, why: "조사는 앞말에 붙여 써요(톱으로, 클리어인가)", lv: "bad",
-    },
+      // 질문을 그대로 옮긴 「…어디인가요 인데요」는 인용이라 뺀다(2026-11-22 지난 검수 대조)
+      when: function (m, s) { var prev = s.slice(0, m.index + 1).split(" ").pop(); return !/(요|까|나|다|죠|니|지)[?!]*$/.test(prev); } },
+    { re: /([요까나다죠니지]) (인가|인가요|인데|인데요|이라고|이라는|이래요)(?=[\s.,!?~]|$)/g, to: function (m) { return m[1] + "?" + m[2]; },
+      why: "질문을 그대로 옮긴 말이면 물음표를 넣고 붙여 써요(어디인가요?인데요)", lv: "chk" },
     // 접두사 「제-」 + 숫자
     { re: /(^|\s)제 (\d+)/g, to: function (m) { return m[1] + "제" + m[2]; }, why: "「제-」는 숫자와 붙여 써요(제9의)", lv: "bad" },
     // 자주 틀리는 낱말
@@ -776,7 +861,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     { re: /에어콘/g, to: function () { return "에어컨"; }, why: "외래어 표기(에어컨)", lv: "bad" },
     { re: /프로포즈/g, to: function () { return "프러포즈"; }, why: "외래어 표기(프러포즈)", lv: "bad" },
     { re: /카카오 맵/g, to: function () { return "카카오맵"; }, why: "서비스 이름은 「카카오맵」이에요", lv: "bad" },
-    { re: /빼빼로 데이/g, to: function () { return "빼빼로데이"; }, why: "기념일 이름은 붙여 써요", lv: "bad" },
+    { re: /빼빼로 데이/g, to: function () { return "빼빼로데이"; }, why: "기념일 이름은 붙여 쓰는 게 좋아요(사전에 없는 말이라 확인)", lv: "chk" },
     { re: /풀버전/g, to: function () { return "풀 버전"; }, why: "「풀 버전」은 띄어 써요", lv: "chk" },
     { re: /어떻해/g, to: function () { return "어떡해"; }, why: "「어떡해(어떻게 해)」가 맞아요", lv: "bad" },
     { re: /웬지/g, to: function () { return "왠지"; }, why: "「왠지(왜인지)」가 맞아요", lv: "bad" },
