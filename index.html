@@ -52,6 +52,11 @@ button:focus-visible, .file:focus-within, textarea:focus-visible { outline: 2px 
 .file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 22px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .drop.on { border-color: var(--ink); }
+/* 영상을 넣은 뒤엔 넣기 칸을 접고 파일 이름 한 줄 + 「다른 영상」만 남긴다(2026-11-22) */
+.cur { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.cur .hint { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: var(--ink); }
+.cur .file { flex: none; background: var(--panel); color: var(--ink); border-color: var(--line); font-weight: 400; padding: 6px 12px; font-size: 13px; }
+.step.on { outline: 2px solid var(--ink); outline-offset: -2px; }
 .prog { display: flex; align-items: center; gap: 10px; color: var(--soft); font-size: 13px; }
 .bar { flex: 1; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .bar i { display: block; height: 100%; width: 0; background: var(--ink); transition: width .2s; }
@@ -118,6 +123,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       <p class="hint">여기로 끌어다 놓아도 돼요 · 자막까지 넣고 내보낸 최종본이요</p>
       <p class="hint">영상은 이 화면 밖으로 안 나가요</p>
     </div>
+    <div class="cur" id="cur" hidden><p class="hint" id="curName"></p><label class="file">다른 영상 넣기<input type="file" id="vfile2"></label></div>
   </section>
 
   <section class="step" id="resStep" hidden>
@@ -267,6 +273,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     last = file; var my = ++token; items = []; skipOcr = false; progDone();
     $("sheet").innerHTML = ""; $("sheetStep").hidden = true; $("resStep").hidden = true; $("subStep").hidden = false;
     $("loadSub").textContent = file.name + " · " + (file.size / 1048576).toFixed(1) + "MB";
+    $("drop").hidden = true; $("cur").hidden = false; $("curName").textContent = "✓ " + $("loadSub").textContent;
     prog("open", 0.02);
     sniff(file).then(function (blob) {
       var url = URL.createObjectURL(blob);
@@ -560,10 +567,10 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   }
 
   // ── 파일 넣기
-  $("vfile").onchange = function (e) { if (e.target.files[0]) run(e.target.files[0]); e.target.value = ""; };
+  $("vfile").onchange = $("vfile2").onchange = function (e) { if (e.target.files[0]) run(e.target.files[0]); e.target.value = ""; };
   var drop = $("drop");
-  ["dragenter", "dragover"].forEach(function (t) { document.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add("on"); }); });
-  ["dragleave", "drop"].forEach(function (t) { document.addEventListener(t, function (e) { e.preventDefault(); if (t === "drop" || e.target === document.documentElement) drop.classList.remove("on"); }); });
+  ["dragenter", "dragover"].forEach(function (t) { document.addEventListener(t, function (e) { e.preventDefault(); (drop.hidden ? drop.parentNode : drop).classList.add("on"); }); });
+  ["dragleave", "drop"].forEach(function (t) { document.addEventListener(t, function (e) { e.preventDefault(); if (t === "drop" || e.target === document.documentElement) { drop.classList.remove("on"); drop.parentNode.classList.remove("on"); } }); });
   document.addEventListener("drop", function (e) {
     var f = e.dataTransfer.files[0]; if (!f) return;
     if (/\.(srt|txt)$/i.test(f.name)) f.text().then(function (s) { $("subs").value = s; subCheck(); });
