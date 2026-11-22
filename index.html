@@ -16,14 +16,30 @@
 :root {
   --paper: #e9ebee; --panel: #ffffff; --ink: #16181b; --soft: #5d636b; --line: #d3d7dc; --chip: #f1f3f5;
   --ui: "Pretendard Variable", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --display: "Cafe24Ssurround", "Pretendard Variable", "Malgun Gothic", sans-serif;
 }
+/* 홍비디오 커버 만들기와 같은 틀: 써라운드 제목, 블랙앤화이트, 홍비디오 로고가 도는 불러오기 화면 */
+@font-face { font-family: "Cafe24Ssurround"; src: url("fonts/Cafe24Ssurround.ttf") format("truetype"); font-display: swap; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --paper: #121417; --panel: #1b1e22; --ink: #eceef0; --soft: #9aa1a9; --line: #30353b; --chip: #24282d; color-scheme: dark } }
 :root[data-theme="dark"] { --paper: #121417; --panel: #1b1e22; --ink: #eceef0; --soft: #9aa1a9; --line: #30353b; --chip: #24282d; color-scheme: dark }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--ui); font-size: 14px; line-height: 1.55; letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: anywhere; }
 .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; display: flex; flex-direction: column; gap: 16px; }
-h1 { font-size: 26px; line-height: 1.2; margin: 0; letter-spacing: -0.03em; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.1; margin: 4px 0 0; letter-spacing: -0.02em; }
+.drop .big { font-size: 15px; font-weight: 700; margin: 0; }
+/* 불러오는 중: 화면 전체를 덮는 막 + 도는 로고 */
+.loading { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: rgba(10,12,14,.93); color: #fff; text-align: center; padding: max(20px, env(safe-area-inset-top, 0px)) 20px max(20px, env(safe-area-inset-bottom, 0px)); font-size: 15px; }
+.loading .logo-spin { width: 76px; height: 76px; animation: spin 1.6s linear infinite; filter: drop-shadow(0 2px 8px rgba(0,0,0,.4)); }
+.loading .sub { color: #c9ced4; font-size: 12.5px; max-width: min(320px, 80vw); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.loading .sub:empty { display: none; }
+.loading .bar { flex: none; width: min(220px, 70%); height: 4px; border-radius: 2px; background: rgba(255,255,255,.2); overflow: hidden; }
+.loading .bar i { background: #fff; }
+.loading .skip { margin-top: 4px; background: transparent; color: #fff; border-color: rgba(255,255,255,.45); font-size: 13px; padding: 6px 12px; }
+.loading .skip:hover { border-color: #fff; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .logo-spin { animation-duration: 4s; } }
 .intro { color: var(--soft); margin: 4px 0 0; }
 .step { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .step h2 { font-size: 15px; margin: 0; display: flex; align-items: center; gap: 8px; }
@@ -65,6 +81,9 @@ button:focus-visible, .file:focus-within, textarea:focus-visible { outline: 2px 
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--soft); }
 .legend i { display: inline-block; width: 18px; height: 0; border-top: 3px solid #eb0000; vertical-align: middle; margin-right: 5px; }
 .legend i.y { border-top: 3px dashed #ffc800; }
+.legend i.r { border-top: 3px dashed #eb0000; }
+.legend i.c { border-top: 3px solid #00beff; }
+.legend i.cd { border-top: 3px dashed #00beff; }
 dialog { border: 0; padding: 0; background: transparent; max-width: 96vw; }
 dialog::backdrop { background: rgba(0,0,0,.8); }
 dialog canvas { max-height: 88vh; max-width: 96vw; display: block; border-radius: 6px; }
@@ -82,22 +101,23 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
 .fix .why { color: var(--soft); font-size: 12.5px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
-
 </head>
 <body>
+
 <div class="wrap">
   <header>
     <h1>제출 전 영상 점검</h1>
-    <p class="intro">올리기 전에 한 번 넣어 보면, 검수에서 자주 나오는 것들을 미리 잡아 줘요. 영상은 이 화면 밖으로 나가지 않아요.</p>
+    <p class="intro">영상만 넣으면 검수에서 걸릴 것 미리 잡아 줘요!</p>
   </header>
 
   <section class="step">
     <h2><span class="n">1</span>영상 넣기</h2>
     <div class="drop" id="drop">
-      <label class="file">영상 고르기<input type="file" id="vfile"></label>
-      <p class="hint">또는 여기로 끌어다 놓기 · 최종본(내보낸 파일)을 넣어 주세요</p>
+      <p class="big">검수 통과각인지 볼까요?</p>
+      <label class="file">영상 열기<input type="file" id="vfile"></label>
+      <p class="hint">여기로 끌어다 놓아도 돼요 · 자막까지 넣고 내보낸 최종본이요</p>
+      <p class="hint">영상은 이 화면 밖으로 안 나가요</p>
     </div>
-    <div class="prog" id="prog" hidden><span id="progMsg">장면 보는 중</span><div class="bar"><i id="progBar"></i></div></div>
   </section>
 
   <section class="step" id="resStep" hidden>
@@ -109,6 +129,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   <section class="step" id="sheetStep" hidden>
     <h2>장면으로 확인하기</h2>
     <div class="legend" id="legend"><span><i></i>빨간 선 밖 = 인스타에서 가려져요(글자·얼굴은 꼭 안으로)</span><span><i class="y"></i>노란 점선 = 광고 가이드 권장</span></div>
+    <div class="legend" id="legendL" hidden><span><i class="r"></i>빨간 점선 안 = 타이틀 세이프(글자·로고는 이 안에)</span><span><i class="c"></i>하늘색 칸 = 자막 한 줄 자리</span><span><i class="cd"></i>하늘색 점선 = 추가 자막 자리</span></div>
     <p class="hint" id="sheetHint">누르면 크게 보여요 · 굵은 시간은 가림 영역에 글자가 있을 수 있는 장면이에요</p>
     <div class="sheet" id="sheet"></div>
   </section>
@@ -126,6 +147,8 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     <p class="hint" id="subNote" hidden>규칙으로 찾는 거라 모든 틀린 곳을 잡지는 못해요. 말투를 살린 예능 자막(ㅋㅋ, 늘인 말)은 그대로 둬도 돼요.</p>
   </section>
 </div>
+
+<div class="loading" id="loading" hidden role="status" aria-live="polite"><img class="logo-spin" src="logos/hong.png" alt=""><div id="loadMsg">영상 불러오고 있어요</div><div class="sub" id="loadStep"></div><div class="sub" id="loadTime"></div><div class="sub" id="loadSub"></div><div class="bar"><i id="loadBarIn"></i></div><button type="button" class="skip" id="loadSkip" hidden>그만 읽고 결과 볼게요</button></div>
 
 <dialog id="big"><canvas id="bigC"></canvas><p id="bigT"></p></dialog>
 
@@ -145,6 +168,8 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   };
   var RED = [[0.05, 0.125], [0.955, 0.125], [0.955, 0.385], [0.855, 0.385], [0.855, 0.79], [0.05, 0.79]];
   var YEL = [0.06, 0.14, 0.94, 0.65];
+  // 롱폼: 빨간 점선 = 타이틀 세이프(가장자리 5%), 하늘색 = 자막 칸(SemiBold 50px 한 줄), 하늘색 점선 = 추가 자막 칸(Medium 40px)
+  var LONG = { safe: [0.05, 0.05, 0.95, 0.95], sub: [0.1, 917 / 1080, 0.9, 977 / 1080], extra: [0.1, 856 / 1080, 0.9, 904 / 1080] };
   var BAND = { v: [0.157, 0.677, 0.843, 0.76], h: [0.1, 0.8, 0.9, 0.92] };   // 자막 자리(숏폼 1300~1460, 롱폼 아래쪽)
   var DEPTS = "신학과경배찬양학과 영어영문학과 일본언어문화학과 중국어중국학과 역사콘텐츠학과 웹툰만화콘텐츠학과 한국어문학창작학부 경찰학과 문헌정보학과 법학과 사회복지학과 상담심리학과 행정학과 경영학과 금융보험학과 물류무역학과 부동산국토정보학과 회계세무학과 IT금융학과 간호학과 물리치료학과 방사선학과 보건관리학과 작업치료학과 식품영양학과 재활학과 환경생명과학과 운동처방학과 건축공학과 건축학과 기계공학과 기계자동차공학과 산업공학과 소방안전공학과 첨단신소재공학과 전기전자공학과 정보통신공학과 토목환경공학과 기초과학과 탄소융합공학과 데이터공학과 스마트미디어학과 인공지능학과 컴퓨터공학과 게임콘텐츠학과 공연방송연기학과 공연예술학과 산업디자인학과 체육학과 시각디자인학과 영화방송학과 예술심리치료학과 음악학과 축구학과 태권도학과 관광경영학과 외식산업조리학과 패션산업학과 한식조리학과 호텔경영학과 국어교육과 영어교육과 중등특수교육과 한문교육과 가정교육과 과학교육과 수학교육과 교육학과 농식품경영학과 AI융합비즈니스학과 미네르바학부 반려동식물학과 친환경자동차학과 로컬벤처학부 교양학부 융합학부 자유전공학부 반려동물산업학부 동물보건학과 펫산업학과 국제학부".split(" ");
 
@@ -173,7 +198,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       li.appendChild(ic); li.appendChild(tx); ul.appendChild(li);
     });
     $("sum").textContent = n.bad ? "꼭 고칠 것 " + n.bad + "개" + (n.chk ? " · 확인할 것 " + n.chk + "개" : "")
-      : n.chk ? "꼭 고칠 건 없어요 · 확인할 것 " + n.chk + "개" : "꼭 고칠 것도, 확인할 것도 없어요";
+      : n.chk ? "✓ 꼭 고칠 건 없어요 · 확인할 것 " + n.chk + "개만 봐 주세요" : "✓ 이대로 내도 돼요";
     $("resStep").hidden = false;
   }
 
@@ -210,12 +235,39 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       return t ? new Blob([file], { type: t }) : file;
     }).catch(function () { return file; });
   }
-  function prog(msg, f) { $("prog").hidden = false; $("progMsg").textContent = msg; $("progBar").style.width = Math.round(f * 100) + "%"; }
+  // 불러오는 중 화면: 단계마다 한마디가 2.5초씩 바뀌고, 3초가 넘으면 걸린 시간을 붙인다(커버 만들기와 같은 방식)
+  var PH = {
+    open: ["영상 불러오고 있어요"],
+    scan: ["장면 한 장씩 넘겨 보고 있어요", "가려지는 자리에 글자 있나 보는 중", "자막 자리 맞는지 재고 있어요", "자막 뒤가 너무 밝진 않은지 보는 중"],
+    audio: ["소리 크기 재고 있어요"],
+    prep: ["자막 읽을 준비하고 있어요"],
+    ocr: ["자막 한 줄씩 읽고 있어요", "띄어쓰기 틀린 데 찾고 있어요", "「수퍼스타」 맞게 썼나 보는 중", "학과 이름 조직도랑 맞춰 보는 중"]
+  };
+  var ph = "", phT = null, tickT = null, t0 = 0, skipOcr = false;
+  function prog(phase, f, detail) {
+    if ($("loading").hidden) {
+      $("loading").hidden = false; t0 = Date.now(); clearInterval(tickT);
+      tickT = setInterval(function () {
+        var s = Math.round((Date.now() - t0) / 1000);
+        $("loadTime").textContent = s >= 3 ? s + "초째 · 롱폼은 몇 분 걸려요" : "";
+      }, 1000);
+    }
+    if (phase !== ph) {
+      ph = phase; var L = PH[phase], li = 0; $("loadMsg").textContent = L[0]; clearInterval(phT);
+      if (L.length > 1) phT = setInterval(function () { li = (li + 1) % L.length; $("loadMsg").textContent = L[li]; }, 2500);
+      $("loadSkip").hidden = phase !== "ocr";
+    }
+    $("loadStep").textContent = detail || "";
+    $("loadBarIn").style.width = Math.round(f * 100) + "%";
+  }
+  function progDone() { clearInterval(phT); clearInterval(tickT); ph = ""; $("loading").hidden = true; $("loadSkip").hidden = true; $("loadTime").textContent = ""; }
+  $("loadSkip").onclick = function () { skipOcr = true; $("loadSkip").hidden = true; $("loadMsg").textContent = "읽은 데까지 정리하고 있어요"; clearInterval(phT); };
 
   function run(file) {
-    last = file; var my = ++token; items = [];
+    last = file; var my = ++token; items = []; skipOcr = false; progDone();
     $("sheet").innerHTML = ""; $("sheetStep").hidden = true; $("resStep").hidden = true; $("subStep").hidden = false;
-    prog("영상 여는 중", 0.02);
+    $("loadSub").textContent = file.name + " · " + (file.size / 1048576).toFixed(1) + "MB";
+    prog("open", 0.02);
     sniff(file).then(function (blob) {
       var url = URL.createObjectURL(blob);
       return new Promise(function (res, rej) {
@@ -231,15 +283,15 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         if (my !== token) return;
         judgeFrames(fr, vert, file.name);
         render();
-        prog("소리 크기 재는 중", 0.85);
+        prog("audio", 0.85);
         return checkAudio(file, my);
       }).then(function () { if (my !== token) return; render(); return readSubs(my, vert); })
-        .then(function () { if (my !== token) return; render(); $("prog").hidden = true; });
+        .then(function () { if (my !== token) return; render(); progDone(); });
     }).catch(function () {
       if (my !== token) return;
       items = [];
       add("bad", "이 브라우저에서 영상을 열지 못했어요", "아이폰 영상(HEVC)이면 크롬·엣지 최신 버전에서 다시 해 보거나, 편집 앱에서 H.264(MP4)로 내보내 주세요");
-      render(); $("prog").hidden = true;
+      render(); progDone();
     });
   }
 
@@ -275,7 +327,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       return seek(t).then(function () {
         cx.drawImage(video, 0, 0, cw, ch);
         out.push({ t: t, data: cx.getImageData(0, 0, cw, ch), w: cw, h: ch });
-        i++; prog("장면 보는 중 " + i + "/" + n, 0.05 + 0.75 * i / n);
+        i++; prog("scan", 0.05 + 0.75 * i / n, "장면 " + i + "/" + n);
         return one();
       });
     }
@@ -293,6 +345,33 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   }
 
   // 글자처럼 보이는 곳: 아주 밝고 색이 적은 점 옆(2px)에 확 어두운 점이 있으면 「글자 테두리」로 센다
+  // 자막 가독성(2026-11-22 담당자 「가독성 부분도 체크해」): 글자 줄 높이와 글자 획 주변 대비
+  //   재 본 값(다나까 인터뷰 롱폼·숏폼): 흰 책상 위 자막 약한 획 비율 0.22~0.41, 어두운 배경 0~0.09 · 줄 높이 롱폼 0.046(50px), 숏폼 0.028(60px)
+  function readability(f, box) {
+    var d = f.data.data, W = f.w, H = f.h, D = 3;
+    var x0 = Math.max(D, Math.round(box[0] * W)), x1 = Math.min(W - D, Math.round(box[2] * W)), y0 = Math.max(D, Math.round(box[1] * H)), y1 = Math.min(H - D, Math.round(box[3] * H));
+    function lum(i) { return (d[i] + d[i + 1] + d[i + 2]) / 3; }
+    var rowN = [], dif = [], br = [];
+    for (var y = y0; y < y1; y++) {
+      var n = 0;
+      for (var x = x0; x < x1; x++) {
+        var i = (y * W + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2], mn = Math.min(r, g, b), mx = Math.max(r, g, b);
+        if (mn < 200 || mx - mn > 40) continue;
+        var L = (r + g + b) / 3, nb = Math.min(lum(i - 4 * D), lum(i + 4 * D), lum(i - 4 * W * D), lum(i + 4 * W * D)), df = L - nb;
+        if (df > 70) n++;
+        if (df > 20) { dif.push(df); br.push(y); }
+      }
+      rowN.push(n);
+    }
+    var runs = [], cur = null, gap = 0;
+    rowN.forEach(function (n, k) {
+      if (n >= 3) { if (!cur || gap > 3) { cur = { a: k, b: k, s: 0 }; runs.push(cur); } cur.b = k; cur.s += n; gap = 0; } else gap++;
+    });
+    if (!runs.length) return null;
+    var main = runs.reduce(function (m, r) { return r.s > m.s ? r : m; }), top = runs[0].a + y0, bot = runs[runs.length - 1].b + y0;
+    var c = 0, weak = 0; for (var q = 0; q < dif.length; q++) if (br[q] >= top && br[q] <= bot) { c++; if (dif[q] < 60) weak++; }
+    return { h: (main.b - main.a + 1) / H, weak: c ? weak / c : 0 };
+  }
   function textDensity(f, box) {
     var d = f.data.data, W = f.w, H = f.h;
     var x0 = Math.round(box[0] * W), y0 = Math.round(box[1] * H), x1 = Math.round(box[2] * W) - 3, y1 = Math.round(box[3] * H) - 3;
@@ -343,6 +422,25 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       else add("ok", "자막이 보여요", "장면 " + fr.length + "개 중 " + sub + "개에서 자막 자리에 글자가 있어요");
     } else if (ratio > 0.5) add("chk", "무자막 파일인데 자막 자리에 글자가 보여요", "자막을 끄고 내보냈는지 확인해 주세요");
     lastVert = vert;
+    // 가독성: 자막 장면마다 대비·크기
+    var subF = fr.filter(function (f) { return f.band > TXT; }), hs = [];
+    subF.forEach(function (f) { var r = readability(f, band); f.rd = r; if (r) hs.push(r.h); f.dim = !!(r && r.weak >= 0.25); });
+    var dimRuns = [], dc = null;
+    fr.forEach(function (f, i) { if (!f.dim) { dc = null; return; } if (!dc || dc.last !== i - 1) { dc = { fs: [] }; dimRuns.push(dc); } dc.fs.push(f); dc.last = i; });
+    dimRuns.slice(0, 4).forEach(function (r) {
+      var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t, pick = r.fs.length <= 3 ? r.fs : [r.fs[0], r.fs[Math.floor(r.fs.length / 2)], r.fs[r.fs.length - 1]];
+      add("chk", (a === b ? fmt(a) : fmt(a) + "~" + fmt(b)) + " · 자막 뒤가 밝아 잘 안 읽힐 수 있어요",
+        "그 구간만 자막 뒤에 어두운 곳이 오게 구도를 바꾸거나, 두 줄용(진한) 자막 그라데이션을 써 주세요",
+        pick.map(function (f) { return { src: thumb(f, vert), t: f.t, flags: f.flags }; }));
+    });
+    if (dimRuns.length > 4) add("chk", "자막 뒤가 밝은 구간이 " + (dimRuns.length - 4) + "곳 더 있어요", "아래 장면에서 흰 배경 위 자막을 봐 주세요");
+    if (hs.length >= 3) {
+      hs.sort(function (a, b) { return a - b; });
+      var mh = hs[Math.floor(hs.length / 2)], std = vert ? 0.028 : 0.046, pct = Math.round(mh / std * 100);
+      if (mh < std * 0.7) add("chk", "자막이 작아요 (가이드의 약 " + pct + "%)", vert ? "숏폼 자막은 Pretendard SemiBold 60px(1080 기준)이에요 · 가이드 칸 속 반투명 글씨에 겹치게 맞춰 주세요" : "롱폼 자막은 Pretendard SemiBold 50px(1920×1080 기준)이에요 · 가이드 칸에 맞춰 주세요");
+      else if (!dimRuns.length) add("ok", "자막이 잘 읽혀요", "크기 가이드의 약 " + pct + "% · 밝은 배경에 묻힌 장면이 안 보여요");
+      else add("ok", "자막 크기는 맞아요", "가이드의 약 " + pct + "%");
+    }
     if (vert) {   // 걸린 장면을 이어진 구간으로 묶고, 그 구간 캡처를 결과에 붙인다
       var runs = [], cur = null;
       fr.forEach(function (f, i) {
@@ -365,7 +463,17 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
 
   function overlay(c, x, vert, flags) {
     var W = c.width, H = c.height;
-    if (!vert) return;
+    if (!vert) {   // 롱폼(16:9) 가이드: 팀콘 「롱폼 가이드」와 같은 좌표(1920×1080 기준, draw_guide_long.ps1)
+      x.save(); x.lineWidth = Math.max(1.5, W / 320);
+      x.strokeStyle = "#eb0000"; x.setLineDash([W / 60, W / 90]);
+      x.strokeRect(LONG.safe[0] * W, LONG.safe[1] * H, (LONG.safe[2] - LONG.safe[0]) * W, (LONG.safe[3] - LONG.safe[1]) * H);
+      x.setLineDash([]); x.strokeStyle = "#00beff"; x.fillStyle = "rgba(0,190,255,.18)";
+      x.fillRect(LONG.sub[0] * W, LONG.sub[1] * H, (LONG.sub[2] - LONG.sub[0]) * W, (LONG.sub[3] - LONG.sub[1]) * H);
+      x.strokeRect(LONG.sub[0] * W, LONG.sub[1] * H, (LONG.sub[2] - LONG.sub[0]) * W, (LONG.sub[3] - LONG.sub[1]) * H);
+      x.setLineDash([W / 90, W / 140]);
+      x.strokeRect(LONG.extra[0] * W, LONG.extra[1] * H, (LONG.extra[2] - LONG.extra[0]) * W, (LONG.extra[3] - LONG.extra[1]) * H);
+      x.restore(); return;
+    }
     x.save();
     (flags || []).forEach(function (k) { var z = Z[k]; x.fillStyle = "rgba(235,0,0,.28)"; x.fillRect(z[0] * W, z[1] * H, (z[2] - z[0]) * W, (z[3] - z[1]) * H); });
     x.strokeStyle = "#eb0000"; x.lineWidth = Math.max(2, W / 135); x.beginPath();
@@ -384,7 +492,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   }
   function drawSheet(fr, vert) {
     var box = $("sheet"); box.innerHTML = ""; box.classList.toggle("wide", !vert);
-    $("legend").hidden = !vert; $("sheetHint").textContent = vert ? "누르면 크게 보여요 · 굵은 시간은 가림 영역에 글자가 있을 수 있는 장면이에요" : "누르면 크게 보여요 · 자막이 빠진 장면이 없는지 봐 주세요";
+    $("legend").hidden = !vert; $("legendL").hidden = vert; $("sheetHint").textContent = vert ? "누르면 크게 보여요 · 굵은 시간은 가림 영역에 글자가 있을 수 있는 장면이에요" : "누르면 크게 보여요 · 자막이 하늘색 칸에, 로고·글자가 빨간 점선 안에 있는지 봐 주세요";
     fr.forEach(function (f) {
       var fig = document.createElement("figure"); if (f.flags.length) fig.className = "flag";
       var c = document.createElement("canvas"); c.width = f.w; c.height = f.h;
@@ -490,38 +598,55 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     var sm = document.createElement("canvas"); sm.width = cw; sm.height = ch; var sx = sm.getContext("2d", { willReadFrequently: true });
     var crop = document.createElement("canvas"), cx = crop.getContext("2d");
     var order = [], best = {}, i = 0, wk;
-    prog("자막 글 읽을 준비 중", 0.88);
+    prog("prep", 0.88, "처음 한 번은 글자 읽기 도구를 받아요");
     return ocrWorker().then(function (w) {
       wk = w;
       function one() {
-        if (my !== token || i >= n) return Promise.resolve();
+        if (my !== token || i >= n || skipOcr) return Promise.resolve();
         var t = (i + 0.5) * step; i++;
-        prog("자막 글 읽는 중 " + i + "/" + n, 0.88 + 0.12 * i / n);
+        prog("ocr", 0.88 + 0.12 * i / n, "자막 자리 " + i + "/" + n);
         return seek(t).then(function () {
           sx.drawImage(video, 0, 0, cw, ch);
           if (textDensity({ data: sx.getImageData(0, 0, cw, ch), w: cw, h: ch }, band) <= TXT) return one();
           var vw = video.videoWidth, vh = video.videoHeight;
           var x0 = (band[0] - 0.03) * vw, y0 = (band[1] - 0.012) * vh, ww = (band[2] - band[0] + 0.06) * vw, hh = (band[3] - band[1] + 0.024) * vh;
-          var k = Math.min(1, 1000 / ww); crop.width = Math.round(ww * k); crop.height = Math.round(hh * k);
+          var k = Math.min(1, 1400 / ww); crop.width = Math.round(ww * k); crop.height = Math.round(hh * k);
           cx.drawImage(video, x0, y0, ww, hh, 0, 0, crop.width, crop.height);
           var shot = crop.toDataURL("image/jpeg", 0.75);
-          var id = cx.getImageData(0, 0, crop.width, crop.height), px = id.data;
-          for (var q = 0; q < px.length; q += 4) {
-            var mn = Math.min(px[q], px[q + 1], px[q + 2]), mx = Math.max(px[q], px[q + 1], px[q + 2]), v = mn >= 172 && mx - mn <= 45 ? 0 : 255;
-            px[q] = px[q + 1] = px[q + 2] = v;
+          // 흰 글자만 남기기: 밝고 색이 없는 점 중 가까이에 어두운 점이 있는 것(글자 획)만. 넓은 흰 면(노트북·벽)은 지운다(2026-11-22)
+          var CW = crop.width, CH = crop.height, id = cx.getImageData(0, 0, CW, CH), px = id.data, L = new Float32Array(CW * CH), on = new Uint8Array(CW * CH);
+          for (var q = 0, n2 = 0; q < px.length; q += 4, n2++) {
+            var mn = Math.min(px[q], px[q + 1], px[q + 2]), mx = Math.max(px[q], px[q + 1], px[q + 2]);
+            L[n2] = (px[q] + px[q + 1] + px[q + 2]) / 3; on[n2] = mn >= 172 && mx - mn <= 45 ? 1 : 0;
+          }
+          var R = Math.max(4, Math.round(CH * 0.09));
+          for (var yy = 0; yy < CH; yy++) for (var xx = 0; xx < CW; xx++) {
+            var o = yy * CW + xx, keep = 0;
+            if (on[o]) {
+              var lv = L[o] - 55, l = 0, r = 0, u = 0, dn = 0;
+              for (var s2 = 1; s2 <= R; s2++) {
+                if (!l && xx - s2 >= 0 && L[o - s2] < lv) l = 1;
+                if (!r && xx + s2 < CW && L[o + s2] < lv) r = 1;
+                if (!u && yy - s2 >= 0 && L[o - s2 * CW] < lv) u = 1;
+                if (!dn && yy + s2 < CH && L[o + s2 * CW] < lv) dn = 1;
+              }
+              keep = (l && r) || (u && dn) ? 1 : 0;
+            }
+            var v = keep ? 0 : 255, q2 = o * 4; px[q2] = px[q2 + 1] = px[q2 + 2] = v;
           }
           cx.putImageData(id, 0, 0);
           return wk.recognize(crop, {}, { text: true, blocks: true }).then(function (r) {
             (r.data.blocks || []).forEach(function (bl) { (bl.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(function (ln) {
               var s = cleanLine(ln.text || "");
               if (!goodLine(s, ln.confidence)) return;
-              var key = s.replace(/[^가-힣A-Za-z0-9]/g, "");
-              // 같은 자막을 여러 번 읽었으면 띄어쓰기가 가장 많은 쪽(글자 인식은 빈칸을 빠뜨리는 일이 많다)
-              // 한쪽이 다른 쪽을 품으면(앞뒤가 덜 읽힌 같은 자막) 긴 쪽 하나만 남긴다
-              var near = order.filter(function (o) { return o !== key && Math.abs(o.length - key.length) <= 4 && (o.indexOf(key) >= 0 || key.indexOf(o) >= 0 || (key.length >= 6 && lev(o, key) <= Math.max(2, Math.round(key.length * 0.15)))); })[0];
-              if (near) { if (key.length > near.length) { best[key] = { t: best[near].t, s: s, img: best[near].img }; order[order.indexOf(near)] = key; delete best[near]; } return; }
-              if (!best[key]) { best[key] = { t: t, s: s, img: shot }; order.push(key); }
-              else if ((s.match(/ /g) || []).length > (best[key].s.match(/ /g) || []).length) best[key].s = s;
+              var key = s.replace(/[^가-힣A-Za-z0-9]/g, ""), sc = ln.confidence + 1.5 * (s.match(/ /g) || []).length;
+              var low = (ln.words || []).filter(function (w) { return w.confidence < 80; }).map(function (w) { return w.text.replace(/[^가-힣A-Za-z0-9]/g, ""); }).filter(Boolean);
+              // 같은 자막을 여러 번 읽었으면: 더 길게(덜 잘리게) 읽은 쪽, 길이가 비슷하면 더 확실하게 읽은 쪽 하나만 남긴다(2026-11-22)
+              var near = best[key] ? key : order.filter(function (o) { return Math.abs(o.length - key.length) <= 6 && (o.indexOf(key) >= 0 || key.indexOf(o) >= 0 || (key.length >= 6 && lev(o, key) <= Math.max(2, Math.round(key.length * 0.2)))); })[0];
+              if (!near) { best[key] = { t: t, s: s, img: shot, sc: sc, low: low }; order.push(key); return; }
+              var g = best[near], longer = key.length >= near.length + 3, shorter = near.length >= key.length + 3;
+              if (shorter || (!longer && sc <= g.sc)) return;
+              delete best[near]; best[key] = { t: g.t, s: s, img: g.img, sc: sc, low: low }; order[order.indexOf(near)] = key;
             }); }); });
             return one();
           }, function () { return one(); });
@@ -531,7 +656,8 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     }).then(function () {
       if (my !== token) return;
       var lines = order.map(function (k) { return fmt(best[k].t) + " " + best[k].s; });
-      $("subs").value = lines.join("\n");
+      $("subs").value = lines.join("\n"); $("subs").dataset.ocr = "1";
+      ocrLow = {}; order.forEach(function (k) { ocrLow[best[k].s] = best[k].low || []; });
       subCheck(); var c = subCheck.last;
       if (!lines.length) { if (subRatio < 0.15) return; add("chk", "자막 글자를 또렷하게 읽지 못했어요", "3번에 자막 글을 직접 붙여 넣으면 점검할 수 있어요"); return; }
       var imgAt = {}; order.forEach(function (k) { imgAt[fmt(best[k].t)] = { src: best[k].img, t: best[k].t }; });
@@ -542,6 +668,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         add(f.lv, f.t + "  " + f.wf + " → " + f.wt, f.why + (f.lv === "chk" ? " (확인)" : ""), g ? [{ src: g.src, t: g.t, sub: true }] : null);
       });
       if (fs.length > MAXF) add("chk", "자막 글 고칠 곳이 " + (fs.length - MAXF) + "개 더 있어요", "3번에서 전부 볼 수 있어요");
+      if (skipOcr && i < n) add("chk", "자막 글은 " + fmt(i * step) + "까지만 읽었어요", "나머지는 3번에 자막 글을 붙여 넣으면 점검할 수 있어요");
       if (!fs.length) add("ok", "자막 글에서 자주 틀리는 건 안 보여요", "자막 " + lines.length + "줄을 읽었어요 · 짧은 자막(「네?」 같은)은 건너뛰어요");
       $("subHint").textContent = "영상에서 읽은 자막이에요 · 잘못 읽힌 글자는 고친 뒤 「고친 글로 다시 점검」을 눌러 주세요";
     }).catch(function () {
@@ -568,7 +695,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     { re: /않(돼|되)/g, to: function (m) { return "안 " + m[1]; }, why: "「않」이 아니라 「안 돼」예요", lv: "bad" },
     { re: /되요/g, to: function () { return "돼요"; }, why: "「되어요」의 준말은 「돼요」예요", lv: "bad" },
     { re: /됬/g, to: function () { return "됐"; }, why: "「되었」의 준말은 「됐」이에요", lv: "bad" },
-    { re: /([가-힣])께(요)?(?=[\s.!?~]|$)/g, to: function (m) { return m[1] + "게" + (m[2] || ""); }, why: "「-ㄹ게」예요(할게)", lv: "bad", when: function (m) { return jong(m[1]) === 8; } },
+    { re: /([가-힣])께(요)?(?=[\s.!?~]|$)/g, to: function (m) { return m[1] + "게" + (m[2] || ""); }, why: "「-ㄹ게」예요(할게)", lv: "bad", when: function (m) { return jong(m[1]) === 8 && "들글말물불길일실날설술알".indexOf(m[1]) < 0; } },
     { re: /몇일/g, to: function () { return "며칠"; }, why: "「며칠」이 맞아요", lv: "bad" },
     { re: /금새/g, to: function () { return "금세"; }, why: "「금세」가 맞아요", lv: "bad" },
     { re: /왠만/g, to: function () { return "웬만"; }, why: "「웬만하다」가 맞아요", lv: "bad" },
@@ -579,8 +706,94 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     { re: /(라고|이라고)(합니다|해요|했|하는)/g, to: function (m) { return m[1] + " " + m[2]; }, why: "「~라고 합니다」는 띄어 써요", lv: "bad" },
     { re: /([가-힣])(게|걸|건)(?=[\s?!.~,]|$)/g, to: function (m) { return m[1] + " " + m[2]; }, why: "「게·걸·건(것이·것을·것은)」은 띄어 써요", lv: "bad", when: function (m) { return "은는던인한된간운든선런떤할을볼갈줄될올".indexOf(m[1]) >= 0; } },
     { re: /([가-힣]) (분|님)(을|이|께|과|도|들)?(?=[\s,.!?]|$)/g, to: function (m) { return m[1] + m[2] + (m[3] || ""); }, why: "높임 접미사 「-분·-님」은 붙여 써요(학우분)", lv: "chk", when: function (m) { return /우|구|족|생|님/.test(m[1]); } },
+    // ── 2026-11-22 늘린 규칙(지난 팀콘 검수 106건 + 맞는 문장 563줄로 시험)
+    // 호칭 「씨」는 띄어 씀(날씨·솜씨·아저씨 같은 한 단어는 뺌)
+    { re: /([가-힣]{1,3})씨(?=[는가도요의랑한께,.!?~\s]|$)/g, to: function (m) { return m[1] + " 씨"; }, why: "호칭 「씨」는 이름과 띄어 써요(은채 씨)", lv: "bad",
+      when: function (m) { return !/(날|솜|맵|말|마음|맘|아저|아가|글|불|홀|꽃|볍|맵|조|분|꽃|아줌마|아재|양)$/.test(m[1]); } },
+    // 「-나 보다」「-ㄴ가 보다」의 「보다」는 띄어 씀(했나 봐요, 좋은가 봐요)
+    { re: /([가-힣])(나|가)(봐|봐요|봅니다|보다|보네|보네요|본데|보구나)(?=[\s.,!?~]|$)/g, to: function (m) { return m[1] + m[2] + " " + m[3]; }, why: "「-나 보다」의 「보다」는 띄어 써요(했나 봐요)", lv: "bad",
+      when: function (m) { var j = jong(m[1]); return m[2] === "나" ? (j === 20 || m[1] === "없") : (j === 4 && "은는던인한운든".indexOf(m[1]) >= 0); } },
+    // 「-어야 되다/하다」는 띄어 씀
+    { re: /([가-힣])야(되|돼|됐|될|된|한다|합니다|해요|했|할|하는|하고|하니|하지|겠)/g, to: function (m) { return m[1] + "야 " + m[2]; }, why: "「-어야 되다·-어야 하다」는 띄어 써요(해야 돼요)", lv: "bad",
+      when: function (m) { return m[2] !== "겠"; } },
+    // 「이예요」는 「이에요」, 받침 없는 말 뒤 「에요」는 「예요」(거예요)
+    { re: /이예요/g, to: function () { return "이에요"; }, why: "받침 있는 말 뒤에는 「이에요」예요(유행이에요)", lv: "bad" },
+    { re: /([가-힣])에요/g, to: function (m) { return m[1] + "예요"; }, why: "받침 없는 말 뒤에는 「예요」예요(거예요)", lv: "bad",
+      when: function (m) { return jong(m[1]) === 0 && "이니세게께헤레네데해래새대개애에아어여와워요오".indexOf(m[1]) < 0; } },
+    // 「-고 싶다」 오타
+    { re: /고\s?십(어|었|나|다|은|네|지|으|던)/g, to: function (m) { return "고 싶" + m[1]; }, why: "「싶다」 오타예요(하고 싶나요)", lv: "bad" },
+    // 「있는」 오타
+    { re: /(에|앞에|안에|위에|옆에|뒤에|여기|거기|저기) 잇(는|어|었|을|으|다|네)/g, to: function (m) { return m[1] + " 있" + m[2]; }, why: "「있다」 오타예요", lv: "bad" },
+    { re: /드리게요/g, to: function () { return "드릴게요"; }, why: "「드릴게요」 오타예요", lv: "bad" },
+    { re: /([가-힣])을실/g, to: function (m) { return m[1] + "으실"; }, why: "높임은 「-으실」이에요(있으실까요)", lv: "bad" },
+    // 명사 뒤 「같다」는 띄어 씀(장소 같아요). 「같이」(조사)·한 단어(똑같다·꿈같다…)는 뺌
+    { re: /([가-힣])같(아|은|다|네|았|애|던|습)/g, to: function (m) { return m[1] + " 같" + m[2]; }, why: "앞말 뒤 「같다」는 띄어 써요(장소 같아요)", lv: "bad",
+      when: function (m, s) { var pre = s.slice(Math.max(0, m.index - 2), m.index + 1); return "똑결쪽살꿈불락뚝철금목억새것거엇착통떡낱".indexOf(m[1]) < 0 && !/(한결|감쪽|쏜살|벼락|굴뚝|불꽃|하나|다름|찰떡|귀신|감나|주옥|생때)$/.test(pre) && jong(m[1]) !== 8 && "은는던인한된".indexOf(m[1]) < 0; } },
+    // 관형어 뒤 「곳·듯·거」는 띄어 씀
+    { re: /([가-힣])(곳|듯)(?=[이은을에도하해한싶,.!?~\s]|$)/g, to: function (m) { return m[1] + " " + m[2]; }, why: "「곳·듯」은 앞말과 띄어 써요(핫플인 곳, 할 듯)", lv: "bad",
+      when: function (m) { return "인은는던한할을볼갈줄될올된".indexOf(m[1]) >= 0; } },
+    { re: /([가-힣])거(?=[야예에요지면니라든고나를의도,.!?~\s]|$)/g, to: function (m) { return m[1] + " 거"; }, why: "「거(것)」는 앞말과 띄어 써요(할 거예요)", lv: "bad",
+      when: function (m, s) { var pre = s.slice(Math.max(0, m.index - 1), m.index + 1); return "할을볼갈줄될올는은던된낼쓸살잘먹".indexOf(m[1]) >= 0 && !/(선|증|근|과|수|화|논)$/.test(pre); } },
+    // 「말고」「때」 띄어쓰기
+    { re: /([가-힣])말고/g, to: function (m) { return m[1] + " 말고"; }, why: "「말고」는 앞말과 띄어 써요(오빠 말고)", lv: "bad", when: function (m) { return "결주종고".indexOf(m[1]) < 0; } },
+    { re: /([가-힣]{2})때(?![문때])/g, to: function (m) { return m[1] + " 때"; }, why: "「때」는 앞말과 띄어 써요(공강 때) · 점심때·저녁때는 붙여요", lv: "chk",
+      when: function (m) { return jong(m[1].charAt(1)) !== 8 && !/(점심|저녁|아침|끼니|요맘|이맘|그맘|한창|어릴|그날|이날|저번|지난|접때|한참|여름|겨울|이번|다음|그쯤|그럴|이럴|저럴|그래|이래)$/.test(m[1]) && !/[그이저한제]$/.test(m[1]); } },
+    // 「-어하다」는 붙여 씀(신기해하다, 좋아하다)
+    { re: /(좋아|싫어|[가-힣]해|[가-힣]워|기뻐|슬퍼|아파|미워) 하(고|는|다|며|면|지|게|던|셨|시|세|였|여|기|길|잖|네|니)/g, to: function (m) { return m[1] + "하" + m[2]; }, why: "「-어하다」는 붙여 써요(신기해하다·좋아하다)", lv: "bad",
+      when: function (m) { return !/^(위해|대해|통해|의해|관해|향해|인해|말해|못해|안해)$/.test(m[1]); } },
+    // 「명사 + 하다」 동사는 붙여 씀(출발하겠습니다, 질문할)
+    { re: /(출발|질문|준비|시작|도착|정리|소개|설명|공부|연습|체험|운영|참여|참가|클리어|감사|추천|축하|진행|선택|결정|확인|이용|도전|성공|실패|노력|응원|활동|졸업|입학|등장|입장|촬영|요리|운동|등록|신청|합격|발표|인터뷰|게임|대답|공개|구경|산책|데이트|쇼핑|주문|기억|상상|고민|약속|부탁|소통|이야기|얘기|사용|변신|완성|실습|여행|경험|방문|추억|기대|사랑|생각) (하|해|했|할|합|한|하겠|해요|해서)(?=[가-힣\s.,!?~]|$)/g,
+      to: function (m) { return m[1] + m[2]; }, why: "「○○하다」는 한 단어라 붙여 써요(출발하겠습니다, 질문할)", lv: "bad",
+      when: function (m, s) { var rest = s.slice(m.index + m[0].length); return !(m[2] === "하" && /^나/.test(rest)) && !(m[2] === "한" && /^\s?(번|개|명|마디|가지|잔|살|시간|달|주|해|분|곳|판|장|권|컵|줄|입|번)/.test(rest)); } },
+    // 조사·서술격 조사는 앞말에 붙여 씀(톱으로, 중심이라면, 왕!까지)
+    { re: /([가-힣A-Za-z0-9!?]) (으로|으로는|으로도|이라면|이라고|이라서|이라는|인가|인가요|인데|인데요|까지|부터|처럼|에게|한테|이랑|에서|에서는|입니다|이에요|이예요|이었|였어요)(?=[\s.,!?~]|$)/g,
+      to: function (m) { return m[1] + m[2]; }, why: "조사는 앞말에 붙여 써요(톱으로, 클리어인가)", lv: "bad",
+    },
+    // 접두사 「제-」 + 숫자
+    { re: /(^|\s)제 (\d+)/g, to: function (m) { return m[1] + "제" + m[2]; }, why: "「제-」는 숫자와 붙여 써요(제9의)", lv: "bad" },
+    // 자주 틀리는 낱말
+    { re: /자켓/g, to: function () { return "재킷"; }, why: "외래어 표기(jacket → 재킷)", lv: "bad" },
+    { re: /메세지/g, to: function () { return "메시지"; }, why: "외래어 표기(메시지)", lv: "bad" },
+    { re: /컨텐츠/g, to: function () { return "콘텐츠"; }, why: "외래어 표기(콘텐츠)", lv: "bad" },
+    { re: /악세사리|악세서리/g, to: function () { return "액세서리"; }, why: "외래어 표기(액세서리)", lv: "bad" },
+    { re: /리더쉽/g, to: function () { return "리더십"; }, why: "외래어 표기(리더십)", lv: "bad" },
+    { re: /스케쥴/g, to: function () { return "스케줄"; }, why: "외래어 표기(스케줄)", lv: "bad" },
+    { re: /쥬스/g, to: function () { return "주스"; }, why: "외래어 표기(주스)", lv: "bad" },
+    { re: /렌트카/g, to: function () { return "렌터카"; }, why: "외래어 표기(렌터카)", lv: "bad" },
+    { re: /바베큐/g, to: function () { return "바비큐"; }, why: "외래어 표기(바비큐)", lv: "bad" },
+    { re: /워크샵/g, to: function () { return "워크숍"; }, why: "외래어 표기(워크숍)", lv: "bad" },
+    { re: /타겟/g, to: function () { return "타깃"; }, why: "외래어 표기(타깃)", lv: "bad" },
+    { re: /비지니스/g, to: function () { return "비즈니스"; }, why: "외래어 표기(비즈니스)", lv: "bad" },
+    { re: /팜플렛|팜플릿/g, to: function () { return "팸플릿"; }, why: "외래어 표기(팸플릿)", lv: "bad" },
+    { re: /플랭카드|플래카드|플랜카드/g, to: function () { return "현수막"; }, why: "「플래카드」가 표준이지만 「현수막」이 쉬워요", lv: "chk" },
+    { re: /에어콘/g, to: function () { return "에어컨"; }, why: "외래어 표기(에어컨)", lv: "bad" },
+    { re: /프로포즈/g, to: function () { return "프러포즈"; }, why: "외래어 표기(프러포즈)", lv: "bad" },
+    { re: /카카오 맵/g, to: function () { return "카카오맵"; }, why: "서비스 이름은 「카카오맵」이에요", lv: "bad" },
+    { re: /빼빼로 데이/g, to: function () { return "빼빼로데이"; }, why: "기념일 이름은 붙여 써요", lv: "bad" },
+    { re: /풀버전/g, to: function () { return "풀 버전"; }, why: "「풀 버전」은 띄어 써요", lv: "chk" },
+    { re: /어떻해/g, to: function () { return "어떡해"; }, why: "「어떡해(어떻게 해)」가 맞아요", lv: "bad" },
+    { re: /웬지/g, to: function () { return "왠지"; }, why: "「왠지(왜인지)」가 맞아요", lv: "bad" },
+    { re: /왠일/g, to: function () { return "웬일"; }, why: "「웬일」이 맞아요", lv: "bad" },
+    { re: /일부로/g, to: function () { return "일부러"; }, why: "「일부러」가 맞아요", lv: "bad" },
+    { re: /설겆이/g, to: function () { return "설거지"; }, why: "「설거지」가 맞아요", lv: "bad" },
+    { re: /(깨끗|곰곰|일일|틈틈|번번|겹겹|샅샅|따뜻|느긋|버젓)히/g, to: function (m) { return m[1] + ({ "깨끗": "이", "곰곰": "이", "일일": "이", "틈틈": "이", "번번": "이", "겹겹": "이", "샅샅": "이", "따뜻": "이", "느긋": "이", "버젓": "이" })[m[1]]; }, why: "「-이」로 써요(깨끗이, 곰곰이)", lv: "bad" },
+    { re: /(꼼꼼|솔직|조용|확실|정확|급)이(?=[\s.,!?~]|$)/g, to: function (m) { return m[1] + "히"; }, why: "「-히」로 써요(꼼꼼히, 솔직히)", lv: "bad" },
+    { re: /구지(?=[\s.,!?~]|$)/g, to: function () { return "굳이"; }, why: "「굳이」가 맞아요", lv: "bad" },
+    { re: /설레임/g, to: function () { return "설렘"; }, why: "「설렘」이 맞아요", lv: "bad" },
+    { re: /([내니제]|너)꺼(?=[야예에요지면니라든고나를의도,.!?~\s]|$)/g, to: function (m) { return m[1] + " 거"; }, why: "「거(것)」로 쓰고 띄어 써요(내 거)", lv: "bad" },
+    { re: /뵈요/g, to: function () { return "봬요"; }, why: "「뵈어요」의 준말은 「봬요」예요", lv: "bad" },
+    { re: /(^|[^안])되(서|도(?!록)|야|줘|버|봐|가지고)/g, to: function (m) { return m[1] + "돼" + m[2]; }, why: "「되어」의 준말은 「돼」예요(돼서, 돼도)", lv: "bad" },
+    { re: /(^|[\s])않(하|해|했|한|할|돼|되|될|된)/g, to: function (m) { return m[1] + "안 " + m[2]; }, why: "부정은 「안 하다」예요(「않다」는 「-지 않다」에만)", lv: "bad" },
+    { re: /(^|\s)할려(고|면|구)/g, to: function (m) { return m[1] + "하려" + m[2]; }, why: "「하려고」가 맞아요", lv: "bad" },
+    { re: /가르켜|가르킨|가르키/g, to: function (m) { return m[0].replace("켜", "쳐").replace("킨", "친").replace("키", "치"); }, why: "「가르치다」(지식) 또는 「가리키다」(방향)예요", lv: "chk" },
+    { re: /바램/g, to: function () { return "바람"; }, why: "「바라다」의 명사는 「바람」이에요", lv: "chk" },
+    { re: /(^|\s)다음(사람|학생|분|질문|순서|게임|영상|장소|편|타자)/g, to: function (m) { return m[1] + "다음 " + m[2]; }, why: "「다음」은 뒷말과 띄어 써요(다음 사람)", lv: "bad" },
+    { re: /(여기|거기|저기|어디)(있|없)/g, to: function (m) { return m[1] + " " + m[2]; }, why: "「있다·없다」는 띄어 써요(여기 있구나)", lv: "bad" },
+    { re: /함께 (하|해|했|할|한)(?=[가-힣\s.,!?~]|$)/g, to: function (m) { return "함께" + m[1]; }, why: "「함께하다」는 한 단어예요(함께하고 싶은)", lv: "chk" },
+    { re: /공강(시간|때)/g, to: function (m) { return "공강 " + m[1]; }, why: "「공강 시간·공강 때」는 띄어 써요", lv: "bad" },
     { re: / {2,}/g, to: function () { return " "; }, why: "두 칸 띄어쓰기예요 · 나열이면 쉼표를 써요", lv: "chk" }
   ];
+  var ocrLow = {};   // 영상에서 읽은 줄마다 확실히 못 읽은 낱말(맞춤법 지적에서 뺌)
   function parseSubs(txt) {   // SRT면 시간과 글, 아니면 줄 그대로
     var lines = txt.replace(/\r/g, "").split("\n"), out = [], t = "";
     for (var i = 0; i < lines.length; i++) {
@@ -605,14 +818,25 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
           var key = ln.t + "|" + m.index + "|" + m[0];
           if (seen[key]) continue; seen[key] = 1;
           var to = r.to(m), SEP = /[\s:;|'"\/,]/, ws = m.index, we = m.index + m[0].length;
+          var lowW = ocrLow[ln.s];
           while (ws > 0 && !SEP.test(ln.s.charAt(ws - 1))) ws--;
           while (we < ln.s.length && !SEP.test(ln.s.charAt(we))) we++;
           if (r.re.source.charAt(0) === " ") ws = m.index;
+          var wkey = ln.s.slice(ws, we).replace(/[^가-힣A-Za-z0-9]/g, "");
+          if (lowW && lowW.some(function (w) { return w && (wkey.indexOf(w) >= 0 || w.indexOf(wkey) >= 0 || lev(w, wkey) <= 2); })) { if (m[0].length === 0) r.re.lastIndex++; continue; }
           found.push({ t: ln.t, from: m[0], to: to, pre: before, post: after, why: r.why, lv: r.lv,
             wf: ln.s.slice(ws, we), wt: (ln.s.slice(ws, m.index) + to + ln.s.slice(m.index + m[0].length, we)).trim() });
           if (m[0].length === 0) r.re.lastIndex++;
         }
       });
+      var tk = ln.s.split(/\s+/);
+      for (var a = 0; a < tk.length; a++) for (var b = a + 1; b < Math.min(tk.length, a + 4); b++) {
+        var seg = tk.slice(a, b + 1), joined = seg.join("").replace(/(은|는|이|가|을|를|의|에|에서|에서는|도|와|과|랑|이랑|로|으로|만|까지)$/, "");
+        if (DEPTS.indexOf(joined) >= 0 && !seen["s" + joined]) {
+          seen["s" + joined] = 1; var wf = seg.join(" ");
+          found.push({ t: ln.t, from: wf, to: joined, pre: "", post: "", wf: wf, wt: seg.join("").trim(), why: "학과 이름은 조직도 표기대로 붙여 써요", lv: "bad" });
+        }
+      }
       var re = /([가-힣A-Za-z]{2,}?)(학과|학부|교육과)/g, d;
       while ((d = re.exec(ln.s))) {
         var w = d[0];
@@ -621,6 +845,10 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         var key2 = w.split("").sort().join(""), sim = DEPTS.filter(function (x) { return x.split("").sort().join("") === key2; })[0] || nearest(w);
         found.push({ t: ln.t, from: w, to: sim || w, pre: "", post: "", wf: w, wt: sim || "(학과 이름 확인)", why: sim ? "조직도 표기와 달라요" : "조직도에 없는 학과 이름이에요 · 확인해 주세요", lv: "chk" });
       }
+    });
+    if ($("subs").dataset.ocr !== "1" && list.some(function (ln) { return /\?/.test(ln.s); })) list.forEach(function (ln) {
+      var s = ln.s.trim(), q = s.match(/([가-힣]+(까요|나요|가요|을까|ㄹ까|는지요|습니까|입니까|냐|어때|어때요|래요|죠))$/);
+      if (q) found.push({ t: ln.t, from: q[1], to: q[1] + "?", pre: "", post: "", wf: q[1], wt: q[1] + "?", why: "묻는 말이면 물음표를 붙여요(같은 영상의 다른 질문엔 있어요)", lv: "chk" });
     });
     var merged = [], at = {};
     found.forEach(function (f) {
@@ -645,12 +873,12 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     var nb = found.filter(function (f) { return f.lv === "bad"; }).length;
     $("subSum").hidden = false; $("subNote").hidden = false;
     subCheck.last = { n: list.length, bad: nb, chk: found.length - nb }; subCheck.found = found;
-    $("subSum").textContent = !list.length ? "자막 글을 넣어 주세요" : found.length ? "고칠 곳 " + nb + "개" + (found.length - nb ? " · 확인할 곳 " + (found.length - nb) + "개" : "") : "자주 틀리는 건 안 보여요";
+    $("subSum").textContent = !list.length ? "자막 글을 넣어 주세요" : found.length ? "고칠 곳 " + nb + "개" + (found.length - nb ? " · 확인할 곳 " + (found.length - nb) + "개" : "") : "✓ 자주 틀리는 건 안 보여요";
   }
   $("subCheck").onclick = subCheck;
-  $("sfile").onchange = function (e) { var f = e.target.files[0]; if (f) f.text().then(function (s) { $("subs").value = s; subCheck(); }); e.target.value = ""; };
+  $("sfile").onchange = function (e) { var f = e.target.files[0]; if (f) f.text().then(function (s) { $("subs").value = s; $("subs").dataset.ocr = ""; ocrLow = {}; subCheck(); }); e.target.value = ""; };
+  $("subs").addEventListener("paste", function () { $("subs").dataset.ocr = ""; ocrLow = {}; });
 })();
 </script>
-
 </body>
 </html>
