@@ -330,7 +330,9 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     fr.forEach(function (f) {
       f.band = textDensity(f, band); if (f.band > TXT) sub++;
       f.flags = [];
+      // 양 끝 잘림 띠(4%)는 좁아서 배경 포스터·무늬 글자에도 걸린다 → 선만 그리고 판정은 안 한다(2026-11-22 담당자 오탐 제보)
       if (vert) Object.keys(Z).forEach(function (k) {
+        if (k === "left" || k === "rightEdge") return;
         if (strokeDensity(f, Z[k]) > ZT) f.flags.push(k);
       });
     });
