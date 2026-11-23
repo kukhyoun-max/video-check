@@ -751,7 +751,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   function stage(x) { lsSet("padStage", x); }
   // 점검 도중 페이지가 꺼졌다 다시 열리면 어디까지 갔는지와 화면 버전을 첫 화면에 보여 준다(2026-11-24 아이폰 원인 찾기)
   (function () {
-    var v = document.createElement("p"); v.className = "hint"; v.style.opacity = ".5"; v.textContent = "화면 버전 11-24d" + (isIOS ? " · 아이폰: 다시 읽기 끔" : "") + (padOff ? "" : " · 다시 읽기 켬");
+    var v = document.createElement("p"); v.className = "hint"; v.style.opacity = ".5"; v.textContent = "화면 버전 11-24e" + (isIOS ? " · 아이폰: 다시 읽기 끔" : "") + (padOff ? "" : " · 다시 읽기 켬");
     if (lsGet("runOn") === "1") {
       lsSet("runOn", null);
       var q = document.createElement("p"); q.className = "hint"; q.style.color = "#c00";
@@ -874,7 +874,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         }
         var R = Math.max(4, Math.round(CH * 0.09));
         function binTo(th) {
-          var cv = document.createElement("canvas"); cv.width = CW; cv.height = CH;
+          var cv = isIOS ? crop : document.createElement("canvas"); if (!isIOS) { cv.width = CW; cv.height = CH; }   // 아이폰은 정식판처럼 캔버스를 새로 만들지 않음(메모리)
           var bx = cv.getContext("2d"), id = bx.createImageData(CW, CH), px = id.data;
           for (var yy = 0; yy < CH; yy++) for (var xx = 0; xx < CW; xx++) {
             var o = yy * CW + xx, keep = 0;
@@ -902,7 +902,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
           return { sc: sc, ok: ok };
         }
         return wk.recognize(binTo(55), {}, { text: true, blocks: true }).then(function (r1) {
-          var a = rate(r1); if (a.ok) return r1;
+          var a = rate(r1); if (a.ok || isIOS) return r1;   // 아이폰은 한 번만 읽음(2026-11-24 두 번 읽기 판에서 시작하자마자 꺼짐)
           return wk.recognize(binTo(35), {}, { text: true, blocks: true }).then(function (r2) { return rate(r2).sc > a.sc ? r2 : r1; });
         }).then(function (r) {
           (r.data.blocks || []).forEach(function (bl) { (bl.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(function (ln) {
