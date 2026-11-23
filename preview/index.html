@@ -765,30 +765,47 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         var shot = crop.toDataURL("image/jpeg", 0.75);
         var keepC = null; if (!vert) { keepC = document.createElement("canvas"); keepC.width = crop.width; keepC.height = crop.height; keepC.getContext("2d").drawImage(crop, 0, 0); }
         // 흰 글자만 남기기: 밝고 색이 없는 점 중 가까이에 어두운 점이 있는 것(글자 획)만. 넓은 흰 면(노트북·벽)은 지운다(2026-11-22)
-        var CW = crop.width, CH = crop.height, id = cx.getImageData(0, 0, CW, CH), px = id.data, L = new Float32Array(CW * CH), on = new Uint8Array(CW * CH);
-        for (var q = 0, n2 = 0; q < px.length; q += 4, n2++) {
-          var mn = Math.min(px[q], px[q + 1], px[q + 2]), mx = Math.max(px[q], px[q + 1], px[q + 2]);
-          L[n2] = (px[q] + px[q + 1] + px[q + 2]) / 3; on[n2] = mn >= 172 && mx - mn <= 45 ? 1 : 0;
+        //  주변보다 55 이상 어두워야 획으로 본다. 흰 노트북·벽 위 자막은 이 기준에서 반쯤 지워져 조각으로 읽히므로, 첫 읽기가 흐리거나
+        //  조각났을 때만 35로 낮춰 한 번 더 읽고 더 나은 쪽을 쓴다(2026-11-23 담당자 아이폰 「다나까 쓰면 끝나는 인터뷰」 1:43.
+        //  35로만 읽으면 흰 배경 줄은 나아지지만 다른 줄이 통째로 빠져 78줄 중 깨짐이 10~13 → 20~24로 늘었음)
+        var CW = crop.width, CH = crop.height, raw = cx.getImageData(0, 0, CW, CH).data, L = new Float32Array(CW * CH), on = new Uint8Array(CW * CH);
+        for (var q = 0, n2 = 0; q < raw.length; q += 4, n2++) {
+          var mn = Math.min(raw[q], raw[q + 1], raw[q + 2]), mx = Math.max(raw[q], raw[q + 1], raw[q + 2]);
+          L[n2] = (raw[q] + raw[q + 1] + raw[q + 2]) / 3; on[n2] = mn >= 172 && mx - mn <= 45 ? 1 : 0;
         }
         var R = Math.max(4, Math.round(CH * 0.09));
-        for (var yy = 0; yy < CH; yy++) for (var xx = 0; xx < CW; xx++) {
-          var o = yy * CW + xx, keep = 0;
-          if (on[o]) {
-            // 주변보다 35 이상 어두운 점이 있어야 글자 획. 55였을 땐 흰 노트북·벽 위 자막이 반쯤 지워져 조각으로 읽혔다
-            //  (2026-11-23 담당자 아이폰 「다나까 쓰면 끝나는 인터뷰」 1:43 「문화예술분 / 술분고 / 분과 에…」)
-            var lv = L[o] - 35, l = 0, r = 0, u = 0, dn = 0;
-            for (var s2 = 1; s2 <= R; s2++) {
-              if (!l && xx - s2 >= 0 && L[o - s2] < lv) l = 1;
-              if (!r && xx + s2 < CW && L[o + s2] < lv) r = 1;
-              if (!u && yy - s2 >= 0 && L[o - s2 * CW] < lv) u = 1;
-              if (!dn && yy + s2 < CH && L[o + s2 * CW] < lv) dn = 1;
+        function binTo(th) {
+          var cv = document.createElement("canvas"); cv.width = CW; cv.height = CH;
+          var bx = cv.getContext("2d"), id = bx.createImageData(CW, CH), px = id.data;
+          for (var yy = 0; yy < CH; yy++) for (var xx = 0; xx < CW; xx++) {
+            var o = yy * CW + xx, keep = 0;
+            if (on[o]) {
+              var lv = L[o] - th, l = 0, r = 0, u = 0, dn = 0;
+              for (var s2 = 1; s2 <= R; s2++) {
+                if (!l && xx - s2 >= 0 && L[o - s2] < lv) l = 1;
+                if (!r && xx + s2 < CW && L[o + s2] < lv) r = 1;
+                if (!u && yy - s2 >= 0 && L[o - s2 * CW] < lv) u = 1;
+                if (!dn && yy + s2 < CH && L[o + s2 * CW] < lv) dn = 1;
+              }
+              keep = (l && r) || (u && dn) ? 1 : 0;
             }
-            keep = (l && r) || (u && dn) ? 1 : 0;
+            var v = keep ? 0 : 255, q2 = o * 4; px[q2] = px[q2 + 1] = px[q2 + 2] = v; px[q2 + 3] = 255;
           }
-          var v = keep ? 0 : 255, q2 = o * 4; px[q2] = px[q2 + 1] = px[q2 + 2] = v;
+          bx.putImageData(id, 0, 0); return cv;
         }
-        cx.putImageData(id, 0, 0);
-        return wk.recognize(crop, {}, { text: true, blocks: true }).then(function (r) {
+        function rate(r) {   // 또렷한 한글 줄일수록 높게
+          var sc = 0, ok = false;
+          (r.data.blocks || []).forEach(function (bl) { (bl.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(function (ln) {
+            var s = cleanLine(ln.text || ""), han = (s.match(/[가-힣]/g) || []).length;
+            if (!goodLine(s, ln.confidence, 55)) return;
+            sc += han * (ln.confidence >= 75 ? 2 : 1); if (ln.confidence >= 75 && han >= 4) ok = true;
+          }); }); });
+          return { sc: sc, ok: ok };
+        }
+        return wk.recognize(binTo(55), {}, { text: true, blocks: true }).then(function (r1) {
+          var a = rate(r1); if (a.ok) return r1;
+          return wk.recognize(binTo(35), {}, { text: true, blocks: true }).then(function (r2) { return rate(r2).sc > a.sc ? r2 : r1; });
+        }).then(function (r) {
           (r.data.blocks || []).forEach(function (bl) { (bl.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(function (ln) {
             var s = cleanLine(ln.text || "");
             if (!goodLine(s, ln.confidence, 55)) return;
