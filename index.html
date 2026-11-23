@@ -24,7 +24,7 @@
   --paper: #121417; --panel: #1b1e22; --ink: #eceef0; --soft: #9aa1a9; --line: #30353b; --chip: #24282d; color-scheme: dark } }
 :root[data-theme="dark"] { --paper: #121417; --panel: #1b1e22; --ink: #eceef0; --soft: #9aa1a9; --line: #30353b; --chip: #24282d; color-scheme: dark }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--ui); font-size: 14px; line-height: 1.55; letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: anywhere; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--ui); font-size: 14px; line-height: 1.55; letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: break-word; }   /* anywhere는 가운데 정렬 칸에서 낱자로 끊김(2026-11-23 휴대폰) */
 .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; display: flex; flex-direction: column; gap: 16px; }
 h1 { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.1; margin: 4px 0 0; letter-spacing: -0.02em; }
 .drop .big { font-size: 15px; font-weight: 700; margin: 0; }
@@ -71,24 +71,16 @@ button:focus-visible, .file:focus-within, textarea:focus-visible { outline: 2px 
 .res .bad b { font-weight: 800; }
 .res .ok b { font-weight: 500; color: var(--soft); }
 .res span { display: block; color: var(--soft); font-size: 13px; }
+.res li > div { min-width: 0; }
 .res .shots { display: flex; gap: 6px; margin-top: 6px; overflow-x: auto; padding-bottom: 2px; }
 .res .shots img { height: 150px; border-radius: 4px; display: block; cursor: zoom-in; flex: none; background: #000; }
 .res .shots img.sub { height: auto; width: min(100%, 320px); }
+/* 위치 문제는 캡처가 설명이라 크게(2026-11-23 담당자 「어긋나는 가이드 이미지만 보여줘도 충분」) */
+.res .shots img.big { height: min(320px, 70vw); }
+.res .shots img.sub.big, .res .shots img.big.wide { height: auto; width: min(100%, 520px); }   /* 롱폼 캡처는 휴대폰 폭에 맞춰 잘리지 않게 */
 .res .when { font-variant-numeric: tabular-nums; margin-right: 6px; }
 .sum { font-size: 15px; font-weight: 700; margin: 0; }
 /* 장면 시트 */
-.sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
-.sheet.wide { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-.sheet figure { margin: 0; position: relative; cursor: zoom-in; }
-.sheet canvas { width: 100%; display: block; border-radius: 4px; background: #000; }
-.sheet figcaption { font-size: 11.5px; color: var(--soft); font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 4px; }
-.sheet figure.flag figcaption b { color: var(--ink); }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--soft); }
-.legend i { display: inline-block; width: 18px; height: 0; border-top: 3px solid #eb0000; vertical-align: middle; margin-right: 5px; }
-.legend i.y { border-top: 3px dashed #ffc800; }
-.legend i.r { border-top: 3px dashed #eb0000; }
-.legend i.c { border-top: 3px solid #00beff; }
-.legend i.cd { border-top: 3px dashed #00beff; }
 dialog { border: 0; padding: 0; background: transparent; max-width: 96vw; }
 dialog::backdrop { background: rgba(0,0,0,.8); }
 dialog canvas { max-height: 88vh; max-width: 96vw; display: block; border-radius: 6px; }
@@ -120,7 +112,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     <div class="drop" id="drop">
       <p class="big">검수 통과각인지 볼까요?</p>
       <label class="file">영상 열기<input type="file" id="vfile"></label>
-      <p class="hint">여기로 끌어다 놓아도 돼요 · 자막까지 넣고 내보낸 최종본이요</p>
+      <p class="hint">여기로 끌어다 놓아도 돼요<br>자막까지 넣고 내보낸 최종본이요</p>
       <p class="hint">영상은 이 화면 밖으로 안 나가요</p>
     </div>
     <div class="cur" id="cur" hidden><p class="hint" id="curName"></p><label class="file">다른 영상 넣기<input type="file" id="vfile2"></label></div>
@@ -130,14 +122,6 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     <h2><span class="n">2</span>점검 결과</h2>
     <p class="sum" id="sum"></p>
     <ul class="res" id="res"></ul>
-  </section>
-
-  <section class="step" id="sheetStep" hidden>
-    <h2>장면으로 확인하기</h2>
-    <div class="legend" id="legend"><span><i></i>빨간 선 밖 = 인스타에서 가려져요(글자·얼굴은 꼭 안으로)</span><span><i class="y"></i>노란 점선 = 광고 가이드 권장</span></div>
-    <div class="legend" id="legendL" hidden><span><i class="r"></i>빨간 점선 안 = 타이틀 세이프(글자·로고는 이 안에)</span><span><i class="c"></i>하늘색 칸 = 자막 한 줄 자리</span><span><i class="cd"></i>하늘색 점선 = 추가 자막 자리</span></div>
-    <p class="hint" id="sheetHint">누르면 크게 보여요 · 굵은 시간은 가림 영역에 글자가 있을 수 있는 장면이에요</p>
-    <div class="sheet" id="sheet"></div>
   </section>
 
   <section class="step" id="subStep" hidden>
@@ -196,8 +180,8 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       if (it.imgs && it.imgs.length) {
         var sh = document.createElement("div"); sh.className = "shots";
         it.imgs.forEach(function (g) {
-          var im = document.createElement("img"); im.src = g.src; im.alt = fmt(g.t) + " 장면"; if (g.sub) im.className = "sub";
-          im.onclick = function () { bigShow(g.t, lastVert, g.flags || []); };
+          var im = document.createElement("img"); im.src = g.src; im.alt = fmt(g.t) + " 장면"; im.className = (g.sub ? "sub " : "") + (g.big ? "big" : "") + (g.big && lastVert === false ? " wide" : "");
+          im.onclick = function () { bigShow(g.t, lastVert, g.flags || [], g.boxes); };
           sh.appendChild(im);
         });
         tx.appendChild(sh);
@@ -272,7 +256,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
 
   function run(file) {
     last = file; var my = ++token; items = []; skipOcr = false; progDone();
-    $("sheet").innerHTML = ""; $("sheetStep").hidden = true; $("resStep").hidden = true; $("subStep").hidden = false;
+    $("resStep").hidden = true; $("subStep").hidden = false;
     $("loadSub").textContent = file.name + " · " + (file.size / 1048576).toFixed(1) + "MB";
     $("drop").hidden = true; $("cur").hidden = false; $("curName").textContent = "✓ " + $("loadSub").textContent;
     prog("open", 0.02);
@@ -287,14 +271,16 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     }).then(function () {
       if (my !== token) return;
       var vert = checkSpec();
+      ocrWorker().catch(function () {});   // 글자 읽기 도구는 장면 보는 동안 미리 받는다(2026-11-23 「로딩 시간이 너무 길다」)
+      if (vert) faceTool().catch(function () {});   // 얼굴 찾기 도구도 미리(2026-11-23 장면 칸 대신 걸린 것만 결과에)
       return scanFrames(my, vert).then(function (fr) {
         if (my !== token) return;
         judgeFrames(fr, vert, file.name);
         render();
-        prog("audio", 0.85);
-        return checkAudio(file, my);
-      }).then(function () { if (my !== token) return; render(); return readSubs(my, vert); })
-        .then(function () { if (my !== token) return; render(); progDone(); });
+        // 소리 크기 재기와 자막 읽기를 동시에(전엔 차례로 해서 12분 4K 롱폼에서 소리만 약 35초)
+        return Promise.all([checkAudio(file, my), readSubs(my, vert), vert ? faceCheck(fr, my) : edgeCheck(fr, my)])
+          ;
+      }).then(function () { if (my !== token) return; render(); progDone(); });
     }).catch(function () {
       if (my !== token) return;
       items = [];
@@ -408,6 +394,25 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     }
     return all ? hit / all : 0;
   }
+  // 걸린 글자가 실제로 있는 자리(획 점의 5~95% 범위)를 0~1 좌표로. 결과 캡처에서 그 자리만 빨간 상자로 강조한다(2026-11-23 담당자)
+  function strokeBox(f, box) {
+    var d = f.data.data, W = f.w, H = f.h, M = 5, xs = [], ys = [];
+    var x0 = Math.max(M, Math.round(box[0] * W)), y0 = Math.max(M, Math.round(box[1] * H)), x1 = Math.min(W - M, Math.round(box[2] * W)), y1 = Math.min(H - M, Math.round(box[3] * H));
+    function lum(i) { return (d[i] + d[i + 1] + d[i + 2]) / 3; }
+    for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) {
+      var i = (y * W + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+      if (r < 175 || g < 175 || b < 175 || Math.max(r, g, b) - Math.min(r, g, b) > 45) continue;
+      var L = (r + g + b) / 3;
+      for (var k = 2; k <= 4; k++) if ((L - lum(i - 4 * k) > 60 && L - lum(i + 4 * k) > 60) || (L - lum(i - 4 * W * k) > 60 && L - lum(i + 4 * W * k) > 60)) { xs.push(x); ys.push(y); break; }
+    }
+    if (xs.length < 4) return null;
+    xs.sort(function (a, b) { return a - b; }); ys.sort(function (a, b) { return a - b; });
+    var q = function (a, p) { return a[Math.min(a.length - 1, Math.floor(a.length * p))]; }, pad = 0.012;
+    return [Math.max(0, q(xs, 0.05) / W - pad), Math.max(0, q(ys, 0.05) / H - pad), Math.min(1, q(xs, 0.95) / W + pad), Math.min(1, q(ys, 0.95) / H + pad)];
+  }
+  // 롱폼 가장자리(빨간 점선 밖) 획 판정은 시험해 보니 배경 창문·나뭇가지에 우르르 걸려 뺐다(2026-11-23).
+  //  롱폼은 글자 읽기로 실제 읽힌 자막 줄 위치만 본다(readSubs의 lowSubs)
+  var LZ = {};
   var ZT = 0.004;   // 가림 영역 글자 획 기준
   var SUBRT = 0.008;   // 자막 끝이 버튼 줄로 넘어간 것 기준
   var lastVert = true, subRatio = 1;
@@ -426,12 +431,17 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       // 긴 자막의 오른쪽 끝이 좋아요·공유 버튼 줄로 넘어감: 자막 줄 높이만 따로 본다(넓은 버튼 영역 전체로 재면 한두 글자는 묻힘).
       // 바로 왼쪽(0.79~0.855)에도 글자가 이어져 있어야 자막으로 본다(2026-11-22 지난 검수 대조: 놓친 「꼭」 가림 4건이 모두 이 경우)
       if (vert && f.band > TXT && f.flags.indexOf("right") < 0 && strokeDensity(f, Z.subR) > SUBRT && strokeDensity(f, [0.79, Z.subR[1], 0.855, Z.subR[3]]) > SUBRT) f.flags.push("subR");
+      f.boxes = f.flags.map(function (k) { return strokeBox(f, (Z[k] || LZ[k])); }).filter(Boolean);
     });
     var ratio = sub / fr.length; subRatio = ratio; var wantSub = !/무자막|자막\s?X|노자막/i.test(name);
     if (wantSub) {
       // 20초 미만은 대사 없는 짧은 클립(과잠 소개 등)일 수 있어 확인으로(2026-11-22 지난 검수 대조)
       if (ratio < 0.15) add(video.duration < 20 ? "chk" : "bad", "자막이 거의 안 보여요", (video.duration < 20 ? "대사가 있는 영상이면 자막을 꼭 넣어 주세요 · 대사 없는 클립이면 그대로 둬도 돼요" : "홍보대사 영상은 대사 자막이 꼭 있어야 해요") + " · 자막이 있는데 이렇게 나오면 자막 자리가 가이드보다 많이 위·아래인지 봐 주세요");
-      else if (ratio < 0.4) add("chk", "자막이 안 보이는 장면이 많아요 (" + Math.round((1 - ratio) * 100) + "%)", "대사가 있는데 자막이 빠진 곳이 없는지 아래 장면에서 확인해 주세요");
+      else if (ratio < 0.4) {
+        var noSub = runsOf(fr.filter(function (f) { return f.band <= TXT; }), 4).sort(function (p, q) { return q.xs.length - p.xs.length; }).slice(0, 4).sort(function (p, q) { return p.a - q.a; });
+        add("chk", noSub.map(function (r) { return span(r.a, r.b); }).join(", ") + " · 자막이 안 보여요 (장면 " + Math.round((1 - ratio) * 100) + "%)", "대사가 있는데 자막이 빠졌으면 넣어 주세요",
+          noSub.map(function (r) { var f = r.xs[Math.floor(r.xs.length / 2)]; return { src: thumb(f, vert, true), t: f.t, flags: [], big: true }; }));
+      }
       else add("ok", "자막이 보여요", "장면 " + fr.length + "개 중 " + sub + "개에서 자막 자리에 글자가 있어요");
     } else if (ratio > 0.5) add("chk", "무자막 파일인데 자막 자리에 글자가 보여요", "자막을 끄고 내보냈는지 확인해 주세요");
     lastVert = vert;
@@ -440,13 +450,12 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     subF.forEach(function (f) { var r = readability(f, band); f.rd = r; if (r) hs.push(r.h); f.dim = !!(r && r.weak >= 0.25); });
     var dimRuns = [], dc = null;
     fr.forEach(function (f, i) { if (!f.dim) { dc = null; return; } if (!dc || dc.last !== i - 1) { dc = { fs: [] }; dimRuns.push(dc); } dc.fs.push(f); dc.last = i; });
-    dimRuns.slice(0, 4).forEach(function (r) {
-      var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t, pick = r.fs.length <= 3 ? r.fs : [r.fs[0], r.fs[Math.floor(r.fs.length / 2)], r.fs[r.fs.length - 1]];
-      add("chk", (a === b ? fmt(a) : fmt(a) + "~" + fmt(b)) + " · 자막 뒤가 밝아 잘 안 읽힐 수 있어요",
-        "그 구간만 자막 뒤에 어두운 곳이 오게 구도를 바꾸거나, 두 줄용(진한) 자막 그라데이션을 써 주세요",
-        pick.map(function (f) { return { src: thumb(f, vert), t: f.t, flags: f.flags }; }));
-    });
-    if (dimRuns.length > 4) add("chk", "자막 뒤가 밝은 구간이 " + (dimRuns.length - 4) + "곳 더 있어요", "아래 장면에서 흰 배경 위 자막을 봐 주세요");
+    if (dimRuns.length) {   // 구간마다 따로 쓰지 않고 한 항목에 구간·장면만(2026-11-23 담당자 「구간/이미지만」)
+      var dr = dimRuns.slice(0, 6), dt = dr.map(function (r) { var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t; return a === b ? fmt(a) : fmt(a) + "~" + fmt(b); });
+      add("chk", dt.join(", ") + (dimRuns.length > 6 ? " 외 " + (dimRuns.length - 6) + "곳" : "") + " · 자막 뒤가 밝아요",
+        "어두운 배경으로 구도를 바꾸거나 진한 자막 그라데이션을 써 주세요",
+        dr.map(function (r) { var f = r.fs[Math.floor(r.fs.length / 2)]; return { src: thumb(f, vert, true), t: f.t, flags: [], big: true }; }));
+    }
     if (hs.length >= 3) {
       hs.sort(function (a, b) { return a - b; });
       var mh = hs[Math.floor(hs.length / 2)], std = vert ? 0.028 : 0.046, pct = Math.round(mh / std * 100);
@@ -462,20 +471,33 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         cur.fs.push(f); cur.last = i; f.flags.forEach(function (k) { cur.zones[k] = 1; });
       });
       runs.forEach(function (r) {
-        var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t, names = Object.keys(r.zones).map(function (k) { return Z[k][4]; }).join(" · ");
+        var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t, names = Object.keys(r.zones).map(function (k) { return (Z[k] || LZ[k])[4]; }).join(" · ");
         var pick = r.fs.length <= 4 ? r.fs : [r.fs[0], r.fs[Math.floor(r.fs.length / 3)], r.fs[Math.floor(r.fs.length * 2 / 3)], r.fs[r.fs.length - 1]];
         // 꼭(✕)은 자막 끝이 버튼 줄로 넘어간 것만. 넓은 가림 영역 판정은 흰 배경·노트북에도 걸려 확인(!)으로(2026-11-22 지난 검수 대조)
         add(r.zones.subR && r.fs.length >= 1 ? "bad" : "chk", (a === b ? fmt(a) : fmt(a) + "~" + fmt(b)) + " · " + names + " 쪽에 글자가 있어요",
-          "빨간 선 안으로 옮겨 주세요 · 글자가 아니라 배경이면 그대로 둬도 돼요",
-          pick.map(function (f) { return { src: thumb(f, true), t: f.t, flags: f.flags }; }));
+          "",
+          pick.map(function (f) { return { src: thumb(f, vert), t: f.t, flags: f.flags, boxes: f.boxes, big: true }; }));
       });
-      if (!runs.length) add("ok", "가림 영역에 걸린 글자가 안 보여요", "얼굴이 빨간 선에 걸리지 않는지는 아래 장면에서 한 번 봐 주세요");
+      if (!runs.length) add("ok", "가림 영역에 걸린 글자가 안 보여요", "");
     }
-    drawSheet(fr, vert);
   }
   function fmt(t) { var m = Math.floor(t / 60), s = Math.floor(t % 60); return m + ":" + (s < 10 ? "0" : "") + s; }
 
-  function overlay(c, x, vert, flags) {
+  function emphasize(x, W, H, boxes) {   // 걸린 자리 강조: 나머지를 어둡게 누르고 그 자리에 빨간 굵은 상자
+    if (!boxes || !boxes.length) return;
+    // 작은 캡처에서도 보이게 상자는 화면 너비의 14% 이상으로 키우고 선을 두껍게(2026-11-23)
+    boxes = boxes.map(function (b) {
+      var mw = 0.14, mh = 0.14 * W / H, cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2, hw = Math.max(mw, b[2] - b[0]) / 2, hh = Math.max(mh, b[3] - b[1]) / 2;
+      return [Math.max(0, cx - hw), Math.max(0, cy - hh), Math.min(1, cx + hw), Math.min(1, cy + hh)];
+    });
+    x.save(); x.fillStyle = "rgba(0,0,0,.5)"; x.beginPath(); x.rect(0, 0, W, H);
+    boxes.forEach(function (b) { x.rect(b[2] * W, b[1] * H, -(b[2] - b[0]) * W, (b[3] - b[1]) * H); });   // 반대 방향 사각형 = 구멍
+    x.fill();
+    x.setLineDash([]); x.lineWidth = Math.max(4, Math.min(W, H) / 45); x.strokeStyle = "#ff1f1f";
+    boxes.forEach(function (b) { x.strokeRect(b[0] * W, b[1] * H, (b[2] - b[0]) * W, (b[3] - b[1]) * H); });
+    x.restore();
+  }
+  function overlay(c, x, vert, flags, boxes) {
     var W = c.width, H = c.height;
     if (!vert) {   // 롱폼(16:9) 가이드: 팀콘 「롱폼 가이드」와 같은 좌표(1920×1080 기준, draw_guide_long.ps1)
       x.save(); x.lineWidth = Math.max(1.5, W / 320);
@@ -486,45 +508,29 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       x.strokeRect(LONG.sub[0] * W, LONG.sub[1] * H, (LONG.sub[2] - LONG.sub[0]) * W, (LONG.sub[3] - LONG.sub[1]) * H);
       x.setLineDash([W / 90, W / 140]);
       x.strokeRect(LONG.extra[0] * W, LONG.extra[1] * H, (LONG.extra[2] - LONG.extra[0]) * W, (LONG.extra[3] - LONG.extra[1]) * H);
-      x.restore(); return;
+      x.restore(); emphasize(x, W, H, boxes); return;
     }
     x.save();
-    (flags || []).forEach(function (k) { var z = Z[k]; x.fillStyle = "rgba(235,0,0,.28)"; x.fillRect(z[0] * W, z[1] * H, (z[2] - z[0]) * W, (z[3] - z[1]) * H); });
+    if (!boxes || !boxes.length) (flags || []).forEach(function (k) { var z = Z[k]; if (!z) return; x.fillStyle = "rgba(235,0,0,.28)"; x.fillRect(z[0] * W, z[1] * H, (z[2] - z[0]) * W, (z[3] - z[1]) * H); });
     x.strokeStyle = "#eb0000"; x.lineWidth = Math.max(2, W / 135); x.beginPath();
     RED.forEach(function (p, i) { if (i) x.lineTo(p[0] * W, p[1] * H); else x.moveTo(p[0] * W, p[1] * H); });
     x.stroke();
     x.strokeStyle = "#ffc800"; x.lineWidth = Math.max(1.5, W / 200); x.setLineDash([W / 40, W / 60]);
     x.strokeRect(YEL[0] * W, YEL[1] * H, (YEL[2] - YEL[0]) * W, (YEL[3] - YEL[1]) * H);
-    x.restore();
+    x.restore(); emphasize(x, W, H, boxes);
   }
-  function thumb(f, vert) {   // 결과에 붙일 작은 캡처(빨간 선·걸린 곳 표시)
+  function thumb(f, vert, plain) {   // 결과에 붙일 작은 캡처(빨간 선·걸린 곳 표시, plain이면 가이드 선만)
     var c = document.createElement("canvas"); c.width = f.w; c.height = f.h;
-    var x = c.getContext("2d"); x.putImageData(f.data, 0, 0); overlay(c, x, vert, f.flags);
+    var x = c.getContext("2d"); x.putImageData(f.data, 0, 0); overlay(c, x, vert, plain ? [] : f.flags, plain ? null : f.boxes);
     var s = document.createElement("canvas"); s.width = Math.round(f.w / 2); s.height = Math.round(f.h / 2);
     s.getContext("2d").drawImage(c, 0, 0, s.width, s.height);
     return s.toDataURL("image/jpeg", 0.75);
   }
-  function drawSheet(fr, vert) {
-    var box = $("sheet"); box.innerHTML = ""; box.classList.toggle("wide", !vert);
-    $("legend").hidden = !vert; $("legendL").hidden = vert; $("sheetHint").textContent = vert ? "누르면 크게 보여요 · 굵은 시간은 가림 영역에 글자가 있을 수 있는 장면이에요" : "누르면 크게 보여요 · 자막이 하늘색 칸에, 로고·글자가 빨간 점선 안에 있는지 봐 주세요";
-    fr.forEach(function (f) {
-      var fig = document.createElement("figure"); if (f.flags.length) fig.className = "flag";
-      var c = document.createElement("canvas"); c.width = f.w; c.height = f.h;
-      var x = c.getContext("2d"); x.putImageData(f.data, 0, 0); overlay(c, x, vert, f.flags);
-      var cap = document.createElement("figcaption"), tb = document.createElement(f.flags.length ? "b" : "span");
-      tb.textContent = fmt(f.t); cap.appendChild(tb);
-      var s2 = document.createElement("span"); s2.textContent = f.band > TXT ? "자막 ○" : "자막 ×"; cap.appendChild(s2);
-      fig.appendChild(c); fig.appendChild(cap);
-      fig.onclick = function () { bigShow(f.t, vert, f.flags); };
-      box.appendChild(fig);
-    });
-    $("sheetStep").hidden = false;
-  }
-  function bigShow(t, vert, flags) {
+  function bigShow(t, vert, flags, boxes) {
     seek(t).then(function () {
       var c = $("bigC"), w = video.videoWidth, h = video.videoHeight, k = Math.min(1, 1600 / Math.max(w, h));
       c.width = Math.round(w * k); c.height = Math.round(h * k);
-      var x = c.getContext("2d"); x.drawImage(video, 0, 0, c.width, c.height); overlay(c, x, vert, flags);
+      var x = c.getContext("2d"); x.drawImage(video, 0, 0, c.width, c.height); overlay(c, x, vert, flags, boxes);
       $("bigT").textContent = fmt(t) + " · 바깥을 누르면 닫혀요";
       if (!$("big").open) $("big").showModal();
     });
@@ -573,6 +579,104 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     }).then(function () { try { ac.close(); } catch (e) {} });
   }
 
+  // ── 장면 칸 대신 걸린 것만 결과에(2026-11-23 담당자 「걸리는것만 골라서 점검 결과에 넣으면 되는거 아님?」)
+  function runsOf(list, gap) {   // 시간 순 [{t,...}]를 gap초 안으로 이어진 구간으로
+    var out = [], cur = null;
+    list.forEach(function (x) { if (!cur || x.t - cur.b > gap) { cur = { a: x.t, b: x.t, xs: [] }; out.push(cur); } cur.b = x.t; cur.xs.push(x); });
+    return out;
+  }
+  function span(a, b) { return a === b ? fmt(a) : fmt(a) + "~" + fmt(b); }
+  function pick3(xs) { return xs.length <= 3 ? xs : [xs[0], xs[Math.floor(xs.length / 2)], xs[xs.length - 1]]; }
+
+  // (1) 숏폼: 얼굴이 가림 영역(위 상태 표시줄·오른쪽 버튼·아래 캡션)에 걸림 — Google MediaPipe 얼굴 찾기(브라우저 안에서 돎)
+  var faceP = null, MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+  function faceTool() {
+    if (!faceP) faceP = import(MP + "/vision_bundle.mjs").then(function (m) {
+      return m.FilesetResolver.forVisionTasks(MP + "/wasm").then(function (fs) {
+        return m.FaceDetector.createFromOptions(fs, { baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite", delegate: "CPU" }, runningMode: "IMAGE", minDetectionConfidence: 0.75 });
+      });
+    }).catch(function (e) { faceP = null; throw e; });
+    return faceP;
+  }
+  var FACEZ = ["top", "right", "bottom"], FACET = 0.3;   // 얼굴 상자의 30% 이상이 가림 영역에 들어가면
+  function faceCheck(fr, my) {
+    return faceTool().then(function (det) {
+      if (my !== token) return;
+      var c = document.createElement("canvas"), hits = [];
+      fr.forEach(function (f) {
+        c.width = f.w; c.height = f.h; c.getContext("2d").putImageData(f.data, 0, 0);
+        var r; try { r = det.detect(c); } catch (e) { return; }
+        (r.detections || []).forEach(function (dt) {
+          var bb = dt.boundingBox, fb = [bb.originX / f.w, bb.originY / f.h, (bb.originX + bb.width) / f.w, (bb.originY + bb.height) / f.h], fa = (fb[2] - fb[0]) * (fb[3] - fb[1]);
+          if (fa <= 0) return;
+          FACEZ.forEach(function (k) {
+            var z = Z[k], ix = Math.max(0, Math.min(fb[2], z[2]) - Math.max(fb[0], z[0])), iy = Math.max(0, Math.min(fb[3], z[3]) - Math.max(fb[1], z[1]));
+            if (ix * iy / fa >= FACET) hits.push({ t: f.t, f: f, k: k, box: fb });
+          });
+        });
+      });
+      if (!hits.length) add("ok", "가림 영역에 걸린 얼굴이 안 보여요", "");
+      runsOf(hits, 4).forEach(function (r) {
+        var names = {}; r.xs.forEach(function (h) { names[Z[h.k][4]] = 1; });
+        add("chk", span(r.a, r.b) + " · 얼굴이 " + Object.keys(names).join(" · ") + " 쪽에 걸려요", "",
+          pick3(r.xs).map(function (h) { return { src: thumbBox(h.f, true, [h.box]), t: h.t, flags: [], boxes: [h.box], big: true }; }));
+      });
+    }).catch(function () { add("chk", "얼굴 위치는 못 봤어요", "얼굴 찾기 도구를 못 불러왔어요 · 얼굴이 빨간 선 밖에 걸리지 않는지 직접 봐 주세요"); });
+  }
+  function thumbBox(f, vert, boxes) {
+    var c = document.createElement("canvas"); c.width = f.w; c.height = f.h;
+    var x = c.getContext("2d"); x.putImageData(f.data, 0, 0); overlay(c, x, vert, [], boxes);
+    var s = document.createElement("canvas"); s.width = Math.round(f.w / 2); s.height = Math.round(f.h / 2);
+    s.getContext("2d").drawImage(c, 0, 0, s.width, s.height);
+    return s.toDataURL("image/jpeg", 0.75);
+  }
+
+  // (2) 롱폼: 빨간 점선(가장자리 5%) 밖 글자·로고. 획 모양만 보면 창문·나무에 걸려서(2026-11-23 시험 영상마다 9~10건)
+  //     획이 보인 장면만 가장자리를 글자 읽기로 다시 보고, 또렷하게 글자로 읽힌 것만 넣는다
+  var EDGE = [
+    { k: "위", z: [0, 0, 1, 0.05], c: [0, 0, 1, 0.16] }, { k: "아래", z: [0, 0.95, 1, 1], c: [0, 0.84, 1, 1] },
+    { k: "왼쪽", z: [0, 0.05, 0.05, 0.95], c: [0, 0, 0.3, 1] }, { k: "오른쪽", z: [0.95, 0.05, 1, 0.95], c: [0.7, 0, 1, 1] }
+  ];
+  function edgeCheck(fr, my) {
+    var jobs = [];
+    fr.forEach(function (f) { EDGE.forEach(function (e) { if (strokeDensity(f, e.z) > 0.004) jobs.push({ f: f, e: e }); }); });
+    if (!jobs.length) { add("ok", "빨간 점선 밖에 걸린 글자가 안 보여요", ""); return Promise.resolve(); }
+    jobs = jobs.slice(0, 24);
+    return ocrWorker().then(function (wk) {
+      var hits = [];
+      return jobs.reduce(function (pr, j) {
+        return pr.then(function () {
+          if (my !== token) return;
+          var f = j.f, e = j.e, S = 2, src = document.createElement("canvas"); src.width = f.w; src.height = f.h; src.getContext("2d").putImageData(f.data, 0, 0);
+          var x0 = e.c[0] * f.w, y0 = e.c[1] * f.h, w = (e.c[2] - e.c[0]) * f.w, h = (e.c[3] - e.c[1]) * f.h;
+          var c = document.createElement("canvas"); c.width = Math.round(w * S); c.height = Math.round(h * S);
+          c.getContext("2d").drawImage(src, x0, y0, w, h, 0, 0, c.width, c.height);
+          return wk.recognize(c, {}, { text: true, blocks: true }).then(function (r) {
+            (r.data.blocks || []).forEach(function (bl) { (bl.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(function (ln) {
+              var s = cleanLine(ln.text || ""), han = (s.match(/[가-힣]/g) || []).length, al = (s.match(/[A-Za-z0-9]/g) || []).length;
+              if (ln.confidence < 65 || (han < 2 && al < 4)) return;
+              if ((s.match(/[^가-힣A-Za-z0-9\s.,!?~:()'"\-]/g) || []).length / Math.max(1, s.length) > 0.1) return;
+              var b = ln.bbox, bx = [e.c[0] + b.x0 / c.width * (e.c[2] - e.c[0]), e.c[1] + b.y0 / c.height * (e.c[3] - e.c[1]), e.c[0] + b.x1 / c.width * (e.c[2] - e.c[0]), e.c[1] + b.y1 / c.height * (e.c[3] - e.c[1])];
+              // 점선(5%)에 딱 붙은 로고는 빼려고 1% 여유를 둔다
+              if (bx[0] < 0.04 || bx[1] < 0.04 || bx[2] > 0.96 || bx[3] > 0.96) hits.push({ t: f.t, f: f, box: bx, s: s });
+            }); }); });
+          });
+        });
+      }, Promise.resolve()).then(function () {
+        if (my !== token) return;
+        hits.sort(function (a, b) { return a.t - b.t; });
+        if (!hits.length) add("ok", "빨간 점선 밖에 걸린 글자가 안 보여요", "");
+        runsOf(hits, 20).forEach(function (r) {
+          add("chk", span(r.a, r.b) + " · 빨간 점선 밖에 글자가 있어요", "",
+            pick3(r.xs).map(function (h) { return { src: thumbBox(h.f, false, [h.box]), t: h.t, flags: [], boxes: [h.box], big: true }; }));
+        });
+      });
+    }).catch(function () {});
+  }
+
+  // (3) 말소리가 나는데 자막이 없는 구간은 넣지 않았다(2026-11-23 시험: 소리 세기 오르내림으로 말소리를 찾으면
+  //     맨인블랙 0:01 자막 없는 대사는 놓치고, 밝은 배경 자막은 「자막 없음」으로 봐서 잘못 걸림. 담당자 검수의 받아쓰기 대조가 맡는다)
+
   // ── 파일 넣기
   $("vfile").onchange = $("vfile2").onchange = function (e) { if (e.target.files[0]) run(e.target.files[0]); e.target.value = ""; };
   var drop = $("drop");
@@ -586,7 +690,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
 
   // ── 자막 읽기: tesseract.js(한국어, 브라우저 안에서 돎). 0.6초마다 자막 자리를 보고, 자막이 바뀐 장면만 읽는다
   //    (2026-11-22 지난 검수 18개 대조: 롱폼을 3초 간격으로 보던 때는 1~2초 자막을 건너뛰어 「꼭」 오탈자 21개 중 4개만 잡음)
-  //    같은 자막이 이어지면 한 번만 적고, 흐리게 읽힌 줄(신뢰도 70 아래)은 규칙 점검에서 뺀다(잘못 읽은 걸 틀렸다고 하지 않게)
+  //    같은 자막이 이어지면 한 번만 적고, 흐리게 읽힌 줄(신뢰도 55~75)·낱말은 「확인」으로만 낸다(2026-11-23, 전엔 뺐음)
   var ocrP = null;
   function ocrWorker() {
     if (!ocrP) ocrP = new Promise(function (res, rej) {
@@ -603,9 +707,10 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     s = s.replace(/^[^가-힣A-Za-z0-9]+/, "").replace(/[^가-힣A-Za-z0-9.!?~)」"'…]+$/, "");
     return s;
   }
-  function goodLine(s, conf) {
+  // 2026-11-23 2번 「흐린 자막도 버리지 말고 확인으로」: 신뢰도 55~75 줄은 「흐림」으로 남기고, 그 줄에서 찾은 건 확인으로만 낸다
+  function goodLine(s, conf, min) {
     var han = (s.match(/[가-힣]/g) || []).length, junk = (s.match(/[^가-힣A-Za-z0-9\s.,!?~|:()「」"'…\-]/g) || []).length;
-    return conf >= 75 && han >= 2 && junk / Math.max(1, s.length) < 0.12;
+    return conf >= (min || 75) && han >= 2 && junk / Math.max(1, s.length) < 0.12;
   }
   // 자막 자리의 「흰 글자 모양」 지문: 96×10칸마다 밝고 색 없는 점의 개수. 칸이 굵으면 길이가 비슷한 다른 자막도 같게 보여
   //  건너뛰므로(2026-11-22 「자켓」 자막을 놓침) 개수로 비교한다
@@ -622,7 +727,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     var d = video.duration, lastSig = null, nOcr = 0, reachedT = 0;
     var band = vert ? BAND.v : BAND.h, cw = vert ? SW : 960, ch = vert ? 960 : 540;
     var sm = document.createElement("canvas"); sm.width = cw; sm.height = ch; var sx = sm.getContext("2d", { willReadFrequently: true });
-    var order = [], best = {}, wk;
+    var order = [], best = {}, wk, lowSubs = [];   // lowSubs: 롱폼에서 하늘색 칸보다 아래에 읽힌 자막 줄(2026-11-23 3번 가이드 밖 자막)
     prog("prep", 0.88, "처음 한 번은 글자 읽기 도구를 받아요");
     return ocrWorker().then(function (w) {
       wk = w;
@@ -640,9 +745,10 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         lastSig = sig; nOcr++;
         var vw = video.videoWidth, vh = video.videoHeight;
         var x0 = (band[0] - 0.03) * vw, y0 = (band[1] - 0.012) * vh, ww = (band[2] - band[0] + 0.06) * vw, hh = (band[3] - band[1] + 0.024) * vh;
+        if (!vert) hh = (0.965 - (band[1] - 0.012)) * vh;   // 롱폼은 하늘색 칸 아래로 내려간 자막도 보이게 아래로 더(2026-11-23)
         var k = Math.min(1, 1400 / ww), c = document.createElement("canvas"); c.width = Math.round(ww * k); c.height = Math.round(hh * k);
         c.getContext("2d").drawImage(video, x0, y0, ww, hh, 0, 0, c.width, c.height);
-        queue.push({ t: t, c: c });
+        queue.push({ t: t, c: c, y0: y0 / vh, hn: hh / vh, x0: x0 / vw, wn: ww / vw });
         if (playing && queue.length >= 20) { pausedQ = true; video.pause(); }   // 읽기가 밀리면 재생을 잠깐 멈춤(메모리)
         pump();
       }
@@ -657,6 +763,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       function readOne(job) {
         var t = job.t, crop = job.c, cx = crop.getContext("2d", { willReadFrequently: true });
         var shot = crop.toDataURL("image/jpeg", 0.75);
+        var keepC = null; if (!vert) { keepC = document.createElement("canvas"); keepC.width = crop.width; keepC.height = crop.height; keepC.getContext("2d").drawImage(crop, 0, 0); }
         // 흰 글자만 남기기: 밝고 색이 없는 점 중 가까이에 어두운 점이 있는 것(글자 획)만. 넓은 흰 면(노트북·벽)은 지운다(2026-11-22)
         var CW = crop.width, CH = crop.height, id = cx.getImageData(0, 0, CW, CH), px = id.data, L = new Float32Array(CW * CH), on = new Uint8Array(CW * CH);
         for (var q = 0, n2 = 0; q < px.length; q += 4, n2++) {
@@ -682,15 +789,29 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         return wk.recognize(crop, {}, { text: true, blocks: true }).then(function (r) {
           (r.data.blocks || []).forEach(function (bl) { (bl.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(function (ln) {
             var s = cleanLine(ln.text || "");
-            if (!goodLine(s, ln.confidence)) return;
+            if (!goodLine(s, ln.confidence, 55)) return;
+            var weak = ln.confidence < 75;
+            // 롱폼: 또렷하게 읽은 줄의 가운데가 하늘색 칸 아래 끝보다 아래면 가이드 밖 자막
+            if (!vert && !weak && ln.bbox && keepC) {
+              var by0 = job.y0 + ln.bbox.y0 / crop.height * job.hn, by1 = job.y0 + ln.bbox.y1 / crop.height * job.hn;
+              if ((by0 + by1) / 2 > LONG.sub[3] + 0.006 && lowSubs.length < 40) {
+                var ec = document.createElement("canvas"); ec.width = keepC.width; ec.height = keepC.height;
+                var ex = ec.getContext("2d"); ex.drawImage(keepC, 0, 0);
+                var gy = (LONG.sub[3] - job.y0) / job.hn * ec.height;   // 하늘색 칸 아래 끝 선
+                ex.strokeStyle = "#00beff"; ex.lineWidth = 2; ex.setLineDash([8, 6]); ex.beginPath(); ex.moveTo(0, gy); ex.lineTo(ec.width, gy); ex.stroke();
+                emphasize(ex, ec.width, ec.height, [[ln.bbox.x0 / ec.width - 0.01, ln.bbox.y0 / ec.height - 0.06, ln.bbox.x1 / ec.width + 0.01, ln.bbox.y1 / ec.height + 0.06]]);
+                lowSubs.push({ t: t, s: s, img: ec.toDataURL("image/jpeg", 0.75) });
+              }
+            }
             var key = s.replace(/[^가-힣A-Za-z0-9]/g, ""), sc = ln.confidence + 1.5 * (s.match(/ /g) || []).length;
             var low = (ln.words || []).filter(function (w) { return w.confidence < 80; }).map(function (w) { return w.text.replace(/[^가-힣A-Za-z0-9]/g, ""); }).filter(Boolean);
             // 같은 자막을 여러 번 읽었으면: 더 길게(덜 잘리게) 읽은 쪽, 길이가 비슷하면 더 확실하게 읽은 쪽 하나만 남긴다(2026-11-22)
             var near = best[key] ? key : order.filter(function (o) { return Math.abs(o.length - key.length) <= 6 && (o.indexOf(key) >= 0 || key.indexOf(o) >= 0 || (key.length >= 6 && lev(o, key) <= Math.max(2, Math.round(key.length * 0.2)))); })[0];
-            if (!near) { best[key] = { t: t, s: s, img: shot, sc: sc, low: low }; order.push(key); return; }
+            if (!near) { best[key] = { t: t, s: s, img: shot, sc: sc, low: low, weak: weak }; order.push(key); return; }
             var g = best[near], longer = key.length >= near.length + 3, shorter = near.length >= key.length + 3;
-            if (shorter || (!longer && sc <= g.sc)) return;
-            delete best[near]; best[key] = { t: g.t, s: s, img: g.img, sc: sc, low: low }; order[order.indexOf(near)] = key;
+            if (weak && !g.weak) return;   // 또렷하게 읽은 게 있으면 흐린 것으로 바꾸지 않음
+            if (!(g.weak && !weak) && (shorter || (!longer && sc <= g.sc))) return;
+            delete best[near]; best[key] = { t: g.t, s: s, img: g.img, sc: sc, low: low, weak: weak }; order[order.indexOf(near)] = key;
           }); }); });
         });
       }
@@ -705,8 +826,9 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
             if (done) return;
             if (my !== token || skipOcr) return fin(true);
             var t = meta.mediaTime;
-            // 기기가 못 따라가 장면이 0.45초 넘게 건너뛰면 재생 속도를 반으로(최저 2배속). 4K는 8배속에서 장면을 버린다
-            if (prevT >= 0 && t - prevT > 0.45) { if (++bigGap >= 2 && video.playbackRate > 2) { video.playbackRate = video.playbackRate / 2; bigGap = 0; } } else bigGap = 0;
+            // 기기가 못 따라가 장면이 0.75초 넘게 건너뛰면 재생 속도를 반으로(최저 2배속). 0.6초마다 한 장면만 있으면 되므로
+            //  0.75초까지는 그대로 둔다(2026-11-23, 전엔 0.45초라 4K가 바로 4배속으로 내려갔음)
+            if (prevT >= 0 && t - prevT > 0.75) { if (++bigGap >= 2 && video.playbackRate > 2) { video.playbackRate = video.playbackRate / 2; bigGap = 0; } } else bigGap = 0;
             prevT = t;
             if (lastT < 0 || t - lastT >= 0.6 - 0.001) { lastT = t; grab(t); showProg(t); }
             video.requestVideoFrameCallback(onFrame);
@@ -741,18 +863,29 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       if (my !== token) return;
       var lines = order.map(function (k) { return fmt(best[k].t) + " " + best[k].s; });
       $("subs").value = lines.join("\n"); $("subs").dataset.ocr = "1";
-      ocrLow = {}; order.forEach(function (k) { ocrLow[best[k].s] = best[k].low || []; });
+      ocrLow = {}; ocrWeak = {}; order.forEach(function (k) { ocrLow[best[k].s] = best[k].low || []; if (best[k].weak) ocrWeak[best[k].s] = 1; });
       // 장면 판정은 「자막 거의 없음」인데 자막을 2줄 넘게 읽었으면 일부 장면에만 자막이 있는 것 → 확인으로(2026-11-22 겜콘 숏폼)
       if (lines.length >= 2) items.forEach(function (it) { if (it.title === "자막이 거의 안 보여요") { it.level = "chk"; it.title = "자막이 일부 장면에만 있어요"; it.detail = "대사가 있는데 자막이 빠진 곳이 없는지 확인해 주세요"; } });
       subCheck(); var c = subCheck.last;
       if (!lines.length) { if (subRatio < 0.15) return; add("chk", "자막 글자를 또렷하게 읽지 못했어요", "3번에 자막 글을 직접 붙여 넣으면 점검할 수 있어요"); return; }
       var imgAt = {}; order.forEach(function (k) { imgAt[fmt(best[k].t)] = { src: best[k].img, t: best[k].t }; });
+      // 편집 가이드 레이어(「말 자막은 여기에 써주세요」 등)를 끄지 않고 내보낸 것(2026-11-23 아바타 롱폼 7:40~11:49)
+      var GL = /자막은\s?여기|여기에\s?써\s?주세요|기본\s?텍스트|로고\s?자리|데드\s?존/, gk = order.filter(function (k) { return GL.test(best[k].s); });
+      if (gk.length) { var g0 = best[gk[0]], g1 = best[gk[gk.length - 1]];
+        add("bad", "편집 가이드 글자가 영상에 남아 있어요 (" + fmt(g0.t) + (gk.length > 1 ? "~" + fmt(g1.t) : "") + ")", "", [{ src: g0.img, t: g0.t, sub: true, big: true }]); }
       var fs = subCheck.found || [], MAXF = 20;
       // 고칠 곳마다 한 줄: 「0:12  재학중 → 재학 중」 + 그 순간 자막 캡처
       fs.slice(0, MAXF).forEach(function (f) {
         var g = imgAt[f.t];
-        add(f.lv, f.t + "  " + f.wf + " → " + f.wt, f.why + (f.lv === "chk" ? " (확인)" : ""), g ? [{ src: g.src, t: g.t, sub: true }] : null);
+        add(f.lv, f.t + "  " + f.wf + " → " + f.wt + (f.why.indexOf(BLUR) >= 0 ? "  (흐리게 읽힘)" : ""));   // 캡처·설명 없이 한 줄(2026-11-23 담당자 「00:00 활동 하다 -> 활동하다 이렇게만」)
       });
+      if (lowSubs.length) {
+        lowSubs.sort(function (a, b) { return a.t - b.t; });
+        var la = lowSubs[0].t, lb = lowSubs[lowSubs.length - 1].t, lp = lowSubs.length <= 3 ? lowSubs : [lowSubs[0], lowSubs[Math.floor(lowSubs.length / 2)], lowSubs[lowSubs.length - 1]];
+        add("chk", (la === lb ? fmt(la) : fmt(la) + "~" + fmt(lb)) + " · 자막이 하늘색 칸보다 아래에 있어요" + (lowSubs.length > 1 ? " (" + lowSubs.length + "줄)" : ""),
+          "",
+          lp.map(function (g) { return { src: g.img, t: g.t, sub: true, big: true }; }));
+      }
       if (fs.length > MAXF) add("chk", "자막 글 고칠 곳이 " + (fs.length - MAXF) + "개 더 있어요", "3번에서 전부 볼 수 있어요");
       if (skipOcr && reachedT < d - 1) add("chk", "자막 글은 " + fmt(reachedT) + "까지만 읽었어요", "나머지는 3번에 자막 글을 붙여 넣으면 점검할 수 있어요");
       if (!fs.length) add("ok", "자막 글에서 자주 틀리는 건 안 보여요", "자막 " + lines.length + "줄을 읽었어요 · 짧은 자막(「네?」 같은)은 건너뛰어요");
@@ -791,6 +924,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     { re: /역활/g, to: function () { return "역할"; }, why: "「역할」이 맞아요", lv: "bad" },
     { re: /(라고|이라고)(합니다|해요|했|하는)/g, to: function (m) { return m[1] + " " + m[2]; }, why: "「~라고 합니다」는 띄어 써요", lv: "bad" },
     { re: /([가-힣])(게|걸|건)(?=[\s?!.~,]|$)/g, to: function (m) { return m[1] + " " + m[2]; }, why: "「게·걸·건(것이·것을·것은)」은 띄어 써요", lv: "bad", when: function (m) { return "은는던인한된간운든선런떤할을볼갈줄될올".indexOf(m[1]) >= 0; } },
+    { re: /(이런|저런|그런|어떤|무슨|이러한|그러한)(거)(?=[\s?!.~,]|$|예요|야|지|든|라)/g, to: function (m) { return m[1] + " " + m[2]; }, why: "「거(것)」는 앞말과 띄어 써요(이런 거)", lv: "bad" },
     { re: /([가-힣]) (분|님)(을|이|께|과|도|들)?(?=[\s,.!?]|$)/g, to: function (m) { return m[1] + m[2] + (m[3] || ""); }, why: "높임 접미사 「-분·-님」은 붙여 써요(학우분)", lv: "chk", when: function (m) { return /우|구|족|생|님/.test(m[1]); } },
     // ── 2026-11-22 늘린 규칙(지난 팀콘 검수 106건 + 맞는 문장 563줄로 시험)
     // 호칭 「씨」는 띄어 씀(날씨·솜씨·아저씨 같은 한 단어는 뺌)
@@ -885,7 +1019,9 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     { re: /공강(시간|때)/g, to: function (m) { return "공강 " + m[1]; }, why: "「공강 시간·공강 때」는 띄어 써요", lv: "bad" },
     { re: / {2,}/g, to: function () { return " "; }, why: "두 칸 띄어쓰기예요 · 나열이면 쉼표를 써요", lv: "chk" }
   ];
-  var ocrLow = {};   // 영상에서 읽은 줄마다 확실히 못 읽은 낱말(맞춤법 지적에서 뺌)
+  var ocrLow = {};   // 영상에서 읽은 줄마다 확실히 못 읽은 낱말(그 낱말에서 찾은 건 확인으로만)
+  var ocrWeak = {};  // 흐리게 읽은 줄(그 줄에서 찾은 건 확인으로만)
+  var BLUR = " · 흐리게 읽힌 글자라 캡처로 확인해 주세요";
   function parseSubs(txt) {   // SRT면 시간과 글, 아니면 줄 그대로
     var lines = txt.replace(/\r/g, "").split("\n"), out = [], t = "";
     for (var i = 0; i < lines.length; i++) {
@@ -915,8 +1051,10 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
           while (we < ln.s.length && !SEP.test(ln.s.charAt(we))) we++;
           if (r.re.source.charAt(0) === " ") ws = m.index;
           var wkey = ln.s.slice(ws, we).replace(/[^가-힣A-Za-z0-9]/g, "");
-          if (lowW && lowW.some(function (w) { return w && (wkey.indexOf(w) >= 0 || w.indexOf(wkey) >= 0 || lev(w, wkey) <= 2); })) { if (m[0].length === 0) r.re.lastIndex++; continue; }
-          found.push({ t: ln.t, from: m[0], to: to, pre: before, post: after, why: r.why, lv: r.lv,
+          var spaceless = ocrWeak[ln.s] && ln.s.indexOf(" ") < 0 && (ln.s.match(/[가-힣]/g) || []).length >= 7;
+          if (spaceless && to.replace(/ /g, "") === m[0].replace(/ /g, "")) { if (m[0].length === 0) r.re.lastIndex++; continue; }   // 흐린 줄이 띄어쓰기를 통째로 잃었으면 띄어쓰기 지적은 안 함
+          var blur = ocrWeak[ln.s] || (lowW && lowW.some(function (w) { return w && (wkey.indexOf(w) >= 0 || w.indexOf(wkey) >= 0 || lev(w, wkey) <= 2); }));
+          found.push({ t: ln.t, from: m[0], to: to, pre: before, post: after, why: r.why + (blur ? BLUR : ""), lv: blur ? "chk" : r.lv,
             wf: ln.s.slice(ws, we), wt: (ln.s.slice(ws, m.index) + to + ln.s.slice(m.index + m[0].length, we)).trim() });
           if (m[0].length === 0) r.re.lastIndex++;
         }
@@ -926,7 +1064,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         var seg = tk.slice(a, b + 1), raw = seg.join(""), joined = DEPTS.indexOf(raw) >= 0 ? raw : raw.replace(/(은|는|이|가|을|를|의|에|에서|에서는|도|와|과|랑|이랑|로|으로|만|까지)$/, "");
         if (DEPTS.indexOf(joined) >= 0 && !seen["s" + joined]) {
           seen["s" + joined] = 1; var wf = seg.join(" ");
-          found.push({ t: ln.t, from: wf, to: joined, pre: "", post: "", wf: wf, wt: seg.join("").trim(), why: "학과 이름은 조직도 표기대로 붙여 써요", lv: "bad" });
+          found.push({ t: ln.t, from: wf, to: joined, pre: "", post: "", wf: wf, wt: seg.join("").trim(), why: "학과 이름은 조직도 표기대로 붙여 써요" + (ocrWeak[ln.s] ? BLUR : ""), lv: ocrWeak[ln.s] ? "chk" : "bad" });
         }
       }
       var re = /([가-힣A-Za-z]{2,}?)(학과|학부|교육과)/g, d;
@@ -935,7 +1073,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         if (DEPTS.indexOf(w) >= 0 || DEPTS.some(function (x) { return w.length > x.length && w.slice(-x.length) === x; }) || seen["d" + w]) continue;
         seen["d" + w] = 1;
         var key2 = w.split("").sort().join(""), sim = DEPTS.filter(function (x) { return x.split("").sort().join("") === key2; })[0] || nearest(w);
-        found.push({ t: ln.t, from: w, to: sim || w, pre: "", post: "", wf: w, wt: sim || "(학과 이름 확인)", why: sim ? "조직도 표기와 달라요" : "조직도에 없는 학과 이름이에요 · 확인해 주세요", lv: "chk" });
+        found.push({ t: ln.t, from: w, to: sim || w, pre: "", post: "", wf: w, wt: sim || "(학과 이름 확인)", why: (sim ? "조직도 표기와 달라요" : "조직도에 없는 학과 이름이에요 · 확인해 주세요") + (ocrWeak[ln.s] ? BLUR : ""), lv: "chk" });
       }
     });
     if ($("subs").dataset.ocr !== "1" && list.some(function (ln) { return /\?/.test(ln.s); })) list.forEach(function (ln) {
@@ -968,8 +1106,8 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     $("subSum").textContent = !list.length ? "자막 글을 넣어 주세요" : found.length ? "고칠 곳 " + nb + "개" + (found.length - nb ? " · 확인할 곳 " + (found.length - nb) + "개" : "") : "✓ 자주 틀리는 건 안 보여요";
   }
   $("subCheck").onclick = subCheck;
-  $("sfile").onchange = function (e) { var f = e.target.files[0]; if (f) f.text().then(function (s) { $("subs").value = s; $("subs").dataset.ocr = ""; ocrLow = {}; subCheck(); }); e.target.value = ""; };
-  $("subs").addEventListener("paste", function () { $("subs").dataset.ocr = ""; ocrLow = {}; });
+  $("sfile").onchange = function (e) { var f = e.target.files[0]; if (f) f.text().then(function (s) { $("subs").value = s; $("subs").dataset.ocr = ""; ocrLow = {}; ocrWeak = {}; subCheck(); }); e.target.value = ""; };
+  $("subs").addEventListener("paste", function () { $("subs").dataset.ocr = ""; ocrLow = {}; ocrWeak = {}; });
 })();
 </script>
 </body>
