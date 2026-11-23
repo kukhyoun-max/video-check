@@ -278,7 +278,8 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         judgeFrames(fr, vert, file.name);
         render();
         // 소리 크기 재기와 자막 읽기를 동시에(전엔 차례로 해서 12분 4K 롱폼에서 소리만 약 35초)
-        return Promise.all([checkAudio(file, my), readSubs(my, vert), vert ? faceCheck(fr, my) : edgeCheck(fr, my)])
+        var aP = checkAudio(file, my), eP = vert ? faceCheck(fr, my) : edgeCheck(fr, my); sideP = Promise.all([aP, eP]).catch(function () {});
+        return Promise.all([aP, readSubs(my, vert), eP])
           ;
       }).then(function () { if (my !== token) return; render(); progDone(); });
     }).catch(function () {
@@ -694,8 +695,9 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   var ocrP = null;
   function ocrWorker() {
     if (!ocrP) ocrP = new Promise(function (res, rej) {
-      var s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
       var to = setTimeout(function () { ocrP = null; rej(new Error("timeout")); }, 25000);
+      if (window.Tesseract) { Tesseract.createWorker("kor").then(function (w) { clearTimeout(to); res(w); }, function (e) { clearTimeout(to); ocrP = null; rej(e); }); return; }   // 닫았다가 다시 띄울 때
+      var s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
       s.onload = function () { Tesseract.createWorker("kor").then(function (w) { clearTimeout(to); res(w); }, function (e) { clearTimeout(to); ocrP = null; rej(e); }); };
       s.onerror = function (e) { clearTimeout(to); ocrP = null; rej(e); }; document.head.appendChild(s);
     });
@@ -730,6 +732,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   //   장면 보는 중에 돌리면 화면이 잠깐씩 멈춰 8배속 재생이 4배속으로 떨어지고 끝까지 안 올라와 5분 영상이 45초 → 81초가 됐다
   //   (2026-11-24 담당자 아이폰: 넣고 나서 첫 화면으로 돌아감 = 메모리가 모자라 브라우저가 페이지를 닫음 → 모델은 장면 보기가 끝난 뒤에 받고,
   //    메모리 예약을 끄고, 다시 읽기 도중에 페이지가 죽었으면 그 기기에선 다음부터 다시 읽기를 건너뛴다)
+  var sideP = Promise.resolve();   // 소리 재기·가장자리/얼굴 보기(다시 읽기 전에 끝나야 Tesseract를 닫을 수 있음)
   var padF = null, padP = null, ORT = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
@@ -958,7 +961,13 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       if (!cand.length) return;
       lsSet("padRunning", "1");
       var nDone = 0; prog("ocr", 0.99, "자막 글자 다시 읽는 중");
-      return padTool().then(function (pd) {
+      // 아이폰은 Tesseract·영상·Paddle이 한꺼번에 메모리에 있으면 페이지가 닫힌다(2026-11-24, Paddle만 따로는 한 줄 0.06초로 잘 돎).
+      //  다른 일이 끝나길 기다렸다가 Tesseract를 닫고(다음 영상에서 다시 띄움) Paddle을 켠다
+      return sideP.then(function () {
+        if (!ocrP) return;
+        var p0 = ocrP; ocrP = null;
+        return p0.then(function (w) { return w.terminate(); }).catch(function () {});
+      }).then(function () { return padTool(); }).then(function (pd) {
         return cand.reduce(function (pr, k) {
           return pr.then(function () {
             if (my !== token || skipOcr) return;
