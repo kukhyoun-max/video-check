@@ -249,13 +249,14 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       $("loadSkip").hidden = phase !== "ocr";
     }
     $("loadStep").textContent = detail || "";
+    try { localStorage.setItem("runAt", Math.round(f * 100) + "% " + (detail || phase)); } catch (e) {}   // 페이지가 꺼지면 어디까지 갔는지 남김
     $("loadBarIn").style.width = Math.round(f * 100) + "%";
   }
-  function progDone() { clearInterval(phT); clearInterval(tickT); ph = ""; $("loading").hidden = true; $("loadSkip").hidden = true; $("loadTime").textContent = ""; }
+  function progDone() { try { localStorage.removeItem("runOn"); } catch (e) {} clearInterval(phT); clearInterval(tickT); ph = ""; $("loading").hidden = true; $("loadSkip").hidden = true; $("loadTime").textContent = ""; }
   $("loadSkip").onclick = function () { skipOcr = true; $("loadSkip").hidden = true; $("loadMsg").textContent = "읽은 데까지 정리하고 있어요"; clearInterval(phT); };
 
   function run(file) {
-    last = file; var my = ++token; items = []; skipOcr = false; progDone();
+    last = file; var my = ++token; items = []; skipOcr = false; progDone(); try { localStorage.setItem("runOn", "1"); } catch (e) {}
     $("resStep").hidden = true; $("subStep").hidden = false;
     $("loadSub").textContent = file.name + " · " + (file.size / 1048576).toFixed(1) + "MB";
     $("drop").hidden = true; $("cur").hidden = false; $("curName").textContent = "✓ " + $("loadSub").textContent;
@@ -748,6 +749,17 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     document.getElementById("drop").appendChild(pc);
   }
   function stage(x) { lsSet("padStage", x); }
+  // 점검 도중 페이지가 꺼졌다 다시 열리면 어디까지 갔는지와 화면 버전을 첫 화면에 보여 준다(2026-11-24 아이폰 원인 찾기)
+  (function () {
+    var v = document.createElement("p"); v.className = "hint"; v.style.opacity = ".5"; v.textContent = "화면 버전 11-24d" + (isIOS ? " · 아이폰: 다시 읽기 끔" : "") + (padOff ? "" : " · 다시 읽기 켬");
+    if (lsGet("runOn") === "1") {
+      lsSet("runOn", null);
+      var q = document.createElement("p"); q.className = "hint"; q.style.color = "#c00";
+      q.textContent = "지난번 점검이 도중에 꺼졌어요 · 마지막: " + (lsGet("runAt") || "?");
+      document.getElementById("drop").appendChild(q);
+    }
+    document.getElementById("drop").appendChild(v);
+  })();
   function padFetch() {
     if (!padF) {
       padF = Promise.all([
