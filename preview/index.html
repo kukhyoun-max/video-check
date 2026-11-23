@@ -77,7 +77,7 @@ button:focus-visible, .file:focus-within, textarea:focus-visible { outline: 2px 
 .res .shots img.sub { height: auto; width: min(100%, 320px); }
 /* 위치 문제는 캡처가 설명이라 크게(2026-11-23 담당자 「어긋나는 가이드 이미지만 보여줘도 충분」) */
 .res .shots img.big { height: min(320px, 70vw); }
-.res .shots img.sub.big { height: auto; width: min(100%, 520px); }
+.res .shots img.sub.big, .res .shots img.big.wide { height: auto; width: min(100%, 520px); }   /* 롱폼 캡처는 휴대폰 폭에 맞춰 잘리지 않게 */
 .res .when { font-variant-numeric: tabular-nums; margin-right: 6px; }
 .sum { font-size: 15px; font-weight: 700; margin: 0; }
 /* 장면 시트 */
@@ -180,7 +180,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       if (it.imgs && it.imgs.length) {
         var sh = document.createElement("div"); sh.className = "shots";
         it.imgs.forEach(function (g) {
-          var im = document.createElement("img"); im.src = g.src; im.alt = fmt(g.t) + " 장면"; im.className = (g.sub ? "sub " : "") + (g.big ? "big" : "");
+          var im = document.createElement("img"); im.src = g.src; im.alt = fmt(g.t) + " 장면"; im.className = (g.sub ? "sub " : "") + (g.big ? "big" : "") + (g.big && lastVert === false ? " wide" : "");
           im.onclick = function () { bigShow(g.t, lastVert, g.flags || [], g.boxes); };
           sh.appendChild(im);
         });
