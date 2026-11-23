@@ -774,7 +774,9 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         for (var yy = 0; yy < CH; yy++) for (var xx = 0; xx < CW; xx++) {
           var o = yy * CW + xx, keep = 0;
           if (on[o]) {
-            var lv = L[o] - 55, l = 0, r = 0, u = 0, dn = 0;
+            // 주변보다 35 이상 어두운 점이 있어야 글자 획. 55였을 땐 흰 노트북·벽 위 자막이 반쯤 지워져 조각으로 읽혔다
+            //  (2026-11-23 담당자 아이폰 「다나까 쓰면 끝나는 인터뷰」 1:43 「문화예술분 / 술분고 / 분과 에…」)
+            var lv = L[o] - 35, l = 0, r = 0, u = 0, dn = 0;
             for (var s2 = 1; s2 <= R; s2++) {
               if (!l && xx - s2 >= 0 && L[o - s2] < lv) l = 1;
               if (!r && xx + s2 < CW && L[o + s2] < lv) r = 1;
@@ -1038,6 +1040,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   function subCheck() {
     var list = parseSubs($("subs").value), found = [], seen = {};
     list.forEach(function (ln) {
+      var f0 = found.length;
       RULES.forEach(function (r) {
         r.re.lastIndex = 0; var m;
         while ((m = r.re.exec(ln.s))) {
@@ -1055,9 +1058,21 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
           if (spaceless && to.replace(/ /g, "") === m[0].replace(/ /g, "")) { if (m[0].length === 0) r.re.lastIndex++; continue; }   // 흐린 줄이 띄어쓰기를 통째로 잃었으면 띄어쓰기 지적은 안 함
           var blur = ocrWeak[ln.s] || (lowW && lowW.some(function (w) { return w && (wkey.indexOf(w) >= 0 || w.indexOf(wkey) >= 0 || lev(w, wkey) <= 2); }));
           found.push({ t: ln.t, from: m[0], to: to, pre: before, post: after, why: r.why + (blur ? BLUR : ""), lv: blur ? "chk" : r.lv,
-            wf: ln.s.slice(ws, we), wt: (ln.s.slice(ws, m.index) + to + ln.s.slice(m.index + m[0].length, we)).trim() });
+            wf: ln.s.slice(ws, we), wt: (ln.s.slice(ws, m.index) + to + ln.s.slice(m.index + m[0].length, we)).trim(), ws: ws, mi: m.index, ml: m[0].length });
           if (m[0].length === 0) r.re.lastIndex++;
         }
+      });
+      // 한 낱말에 고칠 곳이 여럿이면 한 줄로 합쳐 모두 고친 모양을 보여 준다(2026-11-23 「수있을것같아요 → 수있을 것 같아요」처럼 반만 고쳐 보이던 것)
+      var mine = found.splice(f0), byW = {};
+      mine.forEach(function (f) { var k = f.ws === undefined ? "x" + Math.random() : f.ws + "|" + f.wf; (byW[k] = byW[k] || []).push(f); });
+      Object.keys(byW).forEach(function (k) {
+        var g = byW[k]; if (g.length === 1) { found.push(g[0]); return; }
+        g.sort(function (a, b) { return b.mi - a.mi; });
+        var w = g[0].wf, lastS = Infinity, whys = [];
+        g.forEach(function (f) { var a = f.mi - f.ws, e = a + f.ml; if (e > lastS) return; w = w.slice(0, a) + f.to + w.slice(e); lastS = a; whys.unshift(f.why.replace(BLUR, "")); });
+        var blur = g.some(function (f) { return f.why.indexOf(BLUR) >= 0; }), base = g[g.length - 1];
+        found.push({ t: base.t, from: base.wf, to: w.trim(), pre: "", post: "", wf: base.wf, wt: w.trim(), why: whys.filter(function (x, i) { return whys.indexOf(x) === i; }).join(" · ") + (blur ? BLUR : ""),
+          lv: g.some(function (f) { return f.lv === "bad"; }) ? "bad" : "chk" });
       });
       var tk = ln.s.split(/\s+/);
       for (var a = 0; a < tk.length; a++) for (var b = a + 1; b < Math.min(tk.length, a + 4); b++) {
