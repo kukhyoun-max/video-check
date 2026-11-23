@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<title>글자 읽기 시험</title>
+<style>body{font:15px/1.5 -apple-system,sans-serif;margin:16px;background:#fff;color:#111}a{display:block;margin:8px 0;padding:12px;border:1px solid #888;border-radius:8px;color:#111;text-decoration:none;text-align:center}pre{white-space:pre-wrap;background:#f3f3f3;padding:10px;border-radius:8px}img{max-width:100%}</style>
+</head><body>
+<h3>아이폰 글자 읽기 시험</h3>
+<p>A를 눌러 끝까지 기다린 뒤, B도 눌러 주세요. 화면이 꺼지거나 처음으로 돌아가면 이 페이지를 다시 열면 어디서 멈췄는지 보여요.</p>
+<a href="?k=a">A 시험 (지금 쓰는 방식)</a>
+<a href="?k=b">B 시험 (가벼운 방식)</a>
+<pre id="log"></pre>
+<img src="ocr/sample.png" id="smp">
+<script>
+(function () {
+  var L = document.getElementById("log");
+  function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+  var prev = ls("ocrtest"); if (prev) L.textContent = "지난번 기록:\n" + prev + "\n\n";
+  var k = (location.search.match(/k=(\w)/) || [])[1]; if (!k) return;
+  var lines = [], t0 = Date.now();
+  function log(x) { lines.push(k.toUpperCase() + " " + ((Date.now() - t0) / 1000).toFixed(1) + "초 " + x); ls("ocrtest", lines.join("\n")); L.textContent = lines.join("\n"); }
+  var V = k === "a" ? "1.20.1" : "1.17.3", base = "https://cdn.jsdelivr.net/npm/onnxruntime-web@" + V + "/dist/", js = k === "a" ? "ort.min.js" : "ort.wasm-core.min.js";
+  log("시작 · " + navigator.userAgent.replace(/.*\((.*?)\).*/, "$1"));
+  new Promise(function (res, rej) { var s = document.createElement("script"); s.src = base + js; s.onload = res; s.onerror = function () { rej(new Error("스크립트")); }; document.head.appendChild(s); })
+  .then(function () { log("1 도구 받음 " + V); ort.env.wasm.wasmPaths = base; ort.env.wasm.numThreads = 1; ort.env.wasm.simd = true;
+    return Promise.all([fetch("ocr/korean_rec.onnx").then(function (r) { return r.arrayBuffer(); }), fetch("ocr/korean_dict.txt").then(function (r) { return r.text(); })]); })
+  .then(function (a) { log("2 모델 파일 받음 " + Math.round(a[0].byteLength / 1048576) + "MB");
+    return ort.InferenceSession.create(new Uint8Array(a[0]), { executionProviders: ["wasm"], enableCpuMemArena: false, enableMemPattern: false, graphOptimizationLevel: "basic" }).then(function (s) { return [s, a[1]]; }); })
+  .then(function (x) { log("3 모델 준비됨");
+    var sess = x[0], chars = [""].concat(x[1].split(/\r?\n/)).concat([" "]), im = document.getElementById("smp");
+    var H = 48, W = Math.round(im.naturalWidth * H / im.naturalHeight), c = document.createElement("canvas"); c.width = W; c.height = H;
+    c.getContext("2d").drawImage(im, 0, 0, W, H); var d = c.getContext("2d").getImageData(0, 0, W, H).data, n = H * W, f = new Float32Array(3 * n);
+    for (var i = 0; i < n; i++) { f[i] = d[i * 4 + 2] / 127.5 - 1; f[n + i] = d[i * 4 + 1] / 127.5 - 1; f[2 * n + i] = d[i * 4] / 127.5 - 1; }
+    var feeds = {}; feeds[sess.inputNames[0]] = new ort.Tensor("float32", f, [1, 3, H, W]); var t1 = Date.now();
+    return sess.run(feeds).then(function (o) {
+      var t = o[sess.outputNames[0]], T = t.dims[1], C = t.dims[2], v = t.data, s = "", last = -1;
+      for (var q = 0; q < T; q++) { var bi = 0, bv = -1; for (var j = 0; j < C; j++) if (v[q * C + j] > bv) { bv = v[q * C + j]; bi = j; } if (bi !== last && bi !== 0) s += chars[bi] || ""; last = bi; }
+      log("4 한 줄 읽음(" + (Date.now() - t1) + "ms): " + s);
+      var t2 = Date.now(), p = Promise.resolve();
+      for (var r = 0; r < 20; r++) p = p.then(function () { return sess.run(feeds); });
+      return p.then(function () { log("5 20번 더 읽음 · 한 줄 평균 " + Math.round((Date.now() - t2) / 20) + "ms · 끝"); });
+    }); })
+  .catch(function (e) { log("오류: " + (e && e.message || e)); });
+})();
+</script>
+</body></html>
