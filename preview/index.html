@@ -466,7 +466,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     fr.forEach(function (f, i) { if (!f.dim) { dc = null; return; } if (!dc || dc.last !== i - 1) { dc = { fs: [] }; dimRuns.push(dc); } dc.fs.push(f); dc.last = i; });
     if (dimRuns.length) {   // 구간마다 따로 쓰지 않고 한 항목에 구간·장면만(2026-11-23 담당자 「구간/이미지만」)
       var dr = dimRuns.slice(0, 6), dt = dr.map(function (r) { var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t; return a === b ? fmt(a) : fmt(a) + "~" + fmt(b); });
-      add("chk", "자막 뒤가 밝아요 · " + dt.join(", ") + (dimRuns.length > 6 ? " 외 " + (dimRuns.length - 6) + "곳" : ""),
+      add("chk", dt.join(", ") + (dimRuns.length > 6 ? " 외 " + (dimRuns.length - 6) + "곳" : "") + " · 자막 뒤가 밝아요",
         "어두운 배경으로 구도를 바꾸거나 진한 자막 그라데이션을 써 주세요",
         dr.map(function (r) { var f = r.fs[Math.floor(r.fs.length / 2)]; return { src: thumb(f, vert, true), t: f.t, flags: [], big: true }; }));
     }
