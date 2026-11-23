@@ -71,6 +71,7 @@ button:focus-visible, .file:focus-within, textarea:focus-visible { outline: 2px 
 .res .bad b { font-weight: 800; }
 .res .ok b { font-weight: 500; color: var(--soft); }
 .res span { display: block; color: var(--soft); font-size: 13px; }
+.res li > div { min-width: 0; }
 .res .shots { display: flex; gap: 6px; margin-top: 6px; overflow-x: auto; padding-bottom: 2px; }
 .res .shots img { height: 150px; border-radius: 4px; display: block; cursor: zoom-in; flex: none; background: #000; }
 .res .shots img.sub { height: auto; width: min(100%, 320px); }
@@ -197,7 +198,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         var sh = document.createElement("div"); sh.className = "shots";
         it.imgs.forEach(function (g) {
           var im = document.createElement("img"); im.src = g.src; im.alt = fmt(g.t) + " 장면"; if (g.sub) im.className = "sub";
-          im.onclick = function () { bigShow(g.t, lastVert, g.flags || []); };
+          im.onclick = function () { bigShow(g.t, lastVert, g.flags || [], g.boxes); };
           sh.appendChild(im);
         });
         tx.appendChild(sh);
@@ -287,14 +288,14 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     }).then(function () {
       if (my !== token) return;
       var vert = checkSpec();
+      ocrWorker().catch(function () {});   // 글자 읽기 도구는 장면 보는 동안 미리 받는다(2026-11-23 「로딩 시간이 너무 길다」)
       return scanFrames(my, vert).then(function (fr) {
         if (my !== token) return;
         judgeFrames(fr, vert, file.name);
         render();
-        prog("audio", 0.85);
-        return checkAudio(file, my);
-      }).then(function () { if (my !== token) return; render(); return readSubs(my, vert); })
-        .then(function () { if (my !== token) return; render(); progDone(); });
+        // 소리 크기 재기와 자막 읽기를 동시에(전엔 차례로 해서 12분 4K 롱폼에서 소리만 약 35초)
+        return Promise.all([checkAudio(file, my), readSubs(my, vert)]);
+      }).then(function () { if (my !== token) return; render(); progDone(); });
     }).catch(function () {
       if (my !== token) return;
       items = [];
@@ -408,6 +409,25 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     }
     return all ? hit / all : 0;
   }
+  // 걸린 글자가 실제로 있는 자리(획 점의 5~95% 범위)를 0~1 좌표로. 결과 캡처에서 그 자리만 빨간 상자로 강조한다(2026-11-23 담당자)
+  function strokeBox(f, box) {
+    var d = f.data.data, W = f.w, H = f.h, M = 5, xs = [], ys = [];
+    var x0 = Math.max(M, Math.round(box[0] * W)), y0 = Math.max(M, Math.round(box[1] * H)), x1 = Math.min(W - M, Math.round(box[2] * W)), y1 = Math.min(H - M, Math.round(box[3] * H));
+    function lum(i) { return (d[i] + d[i + 1] + d[i + 2]) / 3; }
+    for (var y = y0; y < y1; y++) for (var x = x0; x < x1; x++) {
+      var i = (y * W + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+      if (r < 175 || g < 175 || b < 175 || Math.max(r, g, b) - Math.min(r, g, b) > 45) continue;
+      var L = (r + g + b) / 3;
+      for (var k = 2; k <= 4; k++) if ((L - lum(i - 4 * k) > 60 && L - lum(i + 4 * k) > 60) || (L - lum(i - 4 * W * k) > 60 && L - lum(i + 4 * W * k) > 60)) { xs.push(x); ys.push(y); break; }
+    }
+    if (xs.length < 4) return null;
+    xs.sort(function (a, b) { return a - b; }); ys.sort(function (a, b) { return a - b; });
+    var q = function (a, p) { return a[Math.min(a.length - 1, Math.floor(a.length * p))]; }, pad = 0.012;
+    return [Math.max(0, q(xs, 0.05) / W - pad), Math.max(0, q(ys, 0.05) / H - pad), Math.min(1, q(xs, 0.95) / W + pad), Math.min(1, q(ys, 0.95) / H + pad)];
+  }
+  // 롱폼 가장자리(빨간 점선 밖) 획 판정은 시험해 보니 배경 창문·나뭇가지에 우르르 걸려 뺐다(2026-11-23).
+  //  롱폼은 글자 읽기로 실제 읽힌 자막 줄 위치만 본다(readSubs의 lowSubs)
+  var LZ = {};
   var ZT = 0.004;   // 가림 영역 글자 획 기준
   var SUBRT = 0.008;   // 자막 끝이 버튼 줄로 넘어간 것 기준
   var lastVert = true, subRatio = 1;
@@ -426,6 +446,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       // 긴 자막의 오른쪽 끝이 좋아요·공유 버튼 줄로 넘어감: 자막 줄 높이만 따로 본다(넓은 버튼 영역 전체로 재면 한두 글자는 묻힘).
       // 바로 왼쪽(0.79~0.855)에도 글자가 이어져 있어야 자막으로 본다(2026-11-22 지난 검수 대조: 놓친 「꼭」 가림 4건이 모두 이 경우)
       if (vert && f.band > TXT && f.flags.indexOf("right") < 0 && strokeDensity(f, Z.subR) > SUBRT && strokeDensity(f, [0.79, Z.subR[1], 0.855, Z.subR[3]]) > SUBRT) f.flags.push("subR");
+      f.boxes = f.flags.map(function (k) { return strokeBox(f, (Z[k] || LZ[k])); }).filter(Boolean);
     });
     var ratio = sub / fr.length; subRatio = ratio; var wantSub = !/무자막|자막\s?X|노자막/i.test(name);
     if (wantSub) {
@@ -444,7 +465,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t, pick = r.fs.length <= 3 ? r.fs : [r.fs[0], r.fs[Math.floor(r.fs.length / 2)], r.fs[r.fs.length - 1]];
       add("chk", (a === b ? fmt(a) : fmt(a) + "~" + fmt(b)) + " · 자막 뒤가 밝아 잘 안 읽힐 수 있어요",
         "그 구간만 자막 뒤에 어두운 곳이 오게 구도를 바꾸거나, 두 줄용(진한) 자막 그라데이션을 써 주세요",
-        pick.map(function (f) { return { src: thumb(f, vert), t: f.t, flags: f.flags }; }));
+        pick.map(function (f) { return { src: thumb(f, vert, true), t: f.t, flags: [] }; }));
     });
     if (dimRuns.length > 4) add("chk", "자막 뒤가 밝은 구간이 " + (dimRuns.length - 4) + "곳 더 있어요", "아래 장면에서 흰 배경 위 자막을 봐 주세요");
     if (hs.length >= 3) {
@@ -462,12 +483,12 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         cur.fs.push(f); cur.last = i; f.flags.forEach(function (k) { cur.zones[k] = 1; });
       });
       runs.forEach(function (r) {
-        var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t, names = Object.keys(r.zones).map(function (k) { return Z[k][4]; }).join(" · ");
+        var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t, names = Object.keys(r.zones).map(function (k) { return (Z[k] || LZ[k])[4]; }).join(" · ");
         var pick = r.fs.length <= 4 ? r.fs : [r.fs[0], r.fs[Math.floor(r.fs.length / 3)], r.fs[Math.floor(r.fs.length * 2 / 3)], r.fs[r.fs.length - 1]];
         // 꼭(✕)은 자막 끝이 버튼 줄로 넘어간 것만. 넓은 가림 영역 판정은 흰 배경·노트북에도 걸려 확인(!)으로(2026-11-22 지난 검수 대조)
         add(r.zones.subR && r.fs.length >= 1 ? "bad" : "chk", (a === b ? fmt(a) : fmt(a) + "~" + fmt(b)) + " · " + names + " 쪽에 글자가 있어요",
-          "빨간 선 안으로 옮겨 주세요 · 글자가 아니라 배경이면 그대로 둬도 돼요",
-          pick.map(function (f) { return { src: thumb(f, true), t: f.t, flags: f.flags }; }));
+          (vert ? "빨간 선 안으로 옮겨 주세요" : r.zones.lLow ? "자막은 하늘색 칸 안에, 로고·글자는 빨간 점선 안으로 옮겨 주세요" : "로고·글자를 빨간 점선 안으로 옮겨 주세요") + " · 캡처의 빨간 상자가 걸린 자리예요 · 글자가 아니라 배경이면 그대로 둬도 돼요",
+          pick.map(function (f) { return { src: thumb(f, vert), t: f.t, flags: f.flags, boxes: f.boxes }; }));
       });
       if (!runs.length) add("ok", "가림 영역에 걸린 글자가 안 보여요", "얼굴이 빨간 선에 걸리지 않는지는 아래 장면에서 한 번 봐 주세요");
     }
@@ -475,7 +496,21 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   }
   function fmt(t) { var m = Math.floor(t / 60), s = Math.floor(t % 60); return m + ":" + (s < 10 ? "0" : "") + s; }
 
-  function overlay(c, x, vert, flags) {
+  function emphasize(x, W, H, boxes) {   // 걸린 자리 강조: 나머지를 어둡게 누르고 그 자리에 빨간 굵은 상자
+    if (!boxes || !boxes.length) return;
+    // 작은 캡처에서도 보이게 상자는 화면 너비의 14% 이상으로 키우고 선을 두껍게(2026-11-23)
+    boxes = boxes.map(function (b) {
+      var mw = 0.14, mh = 0.14 * W / H, cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2, hw = Math.max(mw, b[2] - b[0]) / 2, hh = Math.max(mh, b[3] - b[1]) / 2;
+      return [Math.max(0, cx - hw), Math.max(0, cy - hh), Math.min(1, cx + hw), Math.min(1, cy + hh)];
+    });
+    x.save(); x.fillStyle = "rgba(0,0,0,.5)"; x.beginPath(); x.rect(0, 0, W, H);
+    boxes.forEach(function (b) { x.rect(b[2] * W, b[1] * H, -(b[2] - b[0]) * W, (b[3] - b[1]) * H); });   // 반대 방향 사각형 = 구멍
+    x.fill();
+    x.setLineDash([]); x.lineWidth = Math.max(4, Math.min(W, H) / 45); x.strokeStyle = "#ff1f1f";
+    boxes.forEach(function (b) { x.strokeRect(b[0] * W, b[1] * H, (b[2] - b[0]) * W, (b[3] - b[1]) * H); });
+    x.restore();
+  }
+  function overlay(c, x, vert, flags, boxes) {
     var W = c.width, H = c.height;
     if (!vert) {   // 롱폼(16:9) 가이드: 팀콘 「롱폼 가이드」와 같은 좌표(1920×1080 기준, draw_guide_long.ps1)
       x.save(); x.lineWidth = Math.max(1.5, W / 320);
@@ -486,20 +521,20 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       x.strokeRect(LONG.sub[0] * W, LONG.sub[1] * H, (LONG.sub[2] - LONG.sub[0]) * W, (LONG.sub[3] - LONG.sub[1]) * H);
       x.setLineDash([W / 90, W / 140]);
       x.strokeRect(LONG.extra[0] * W, LONG.extra[1] * H, (LONG.extra[2] - LONG.extra[0]) * W, (LONG.extra[3] - LONG.extra[1]) * H);
-      x.restore(); return;
+      x.restore(); emphasize(x, W, H, boxes); return;
     }
     x.save();
-    (flags || []).forEach(function (k) { var z = Z[k]; x.fillStyle = "rgba(235,0,0,.28)"; x.fillRect(z[0] * W, z[1] * H, (z[2] - z[0]) * W, (z[3] - z[1]) * H); });
+    if (!boxes || !boxes.length) (flags || []).forEach(function (k) { var z = Z[k]; if (!z) return; x.fillStyle = "rgba(235,0,0,.28)"; x.fillRect(z[0] * W, z[1] * H, (z[2] - z[0]) * W, (z[3] - z[1]) * H); });
     x.strokeStyle = "#eb0000"; x.lineWidth = Math.max(2, W / 135); x.beginPath();
     RED.forEach(function (p, i) { if (i) x.lineTo(p[0] * W, p[1] * H); else x.moveTo(p[0] * W, p[1] * H); });
     x.stroke();
     x.strokeStyle = "#ffc800"; x.lineWidth = Math.max(1.5, W / 200); x.setLineDash([W / 40, W / 60]);
     x.strokeRect(YEL[0] * W, YEL[1] * H, (YEL[2] - YEL[0]) * W, (YEL[3] - YEL[1]) * H);
-    x.restore();
+    x.restore(); emphasize(x, W, H, boxes);
   }
-  function thumb(f, vert) {   // 결과에 붙일 작은 캡처(빨간 선·걸린 곳 표시)
+  function thumb(f, vert, plain) {   // 결과에 붙일 작은 캡처(빨간 선·걸린 곳 표시, plain이면 가이드 선만)
     var c = document.createElement("canvas"); c.width = f.w; c.height = f.h;
-    var x = c.getContext("2d"); x.putImageData(f.data, 0, 0); overlay(c, x, vert, f.flags);
+    var x = c.getContext("2d"); x.putImageData(f.data, 0, 0); overlay(c, x, vert, plain ? [] : f.flags, plain ? null : f.boxes);
     var s = document.createElement("canvas"); s.width = Math.round(f.w / 2); s.height = Math.round(f.h / 2);
     s.getContext("2d").drawImage(c, 0, 0, s.width, s.height);
     return s.toDataURL("image/jpeg", 0.75);
@@ -510,21 +545,21 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     fr.forEach(function (f) {
       var fig = document.createElement("figure"); if (f.flags.length) fig.className = "flag";
       var c = document.createElement("canvas"); c.width = f.w; c.height = f.h;
-      var x = c.getContext("2d"); x.putImageData(f.data, 0, 0); overlay(c, x, vert, f.flags);
+      var x = c.getContext("2d"); x.putImageData(f.data, 0, 0); overlay(c, x, vert, f.flags, f.boxes);
       var cap = document.createElement("figcaption"), tb = document.createElement(f.flags.length ? "b" : "span");
       tb.textContent = fmt(f.t); cap.appendChild(tb);
       var s2 = document.createElement("span"); s2.textContent = f.band > TXT ? "자막 ○" : "자막 ×"; cap.appendChild(s2);
       fig.appendChild(c); fig.appendChild(cap);
-      fig.onclick = function () { bigShow(f.t, vert, f.flags); };
+      fig.onclick = function () { bigShow(f.t, vert, f.flags, f.boxes); };
       box.appendChild(fig);
     });
     $("sheetStep").hidden = false;
   }
-  function bigShow(t, vert, flags) {
+  function bigShow(t, vert, flags, boxes) {
     seek(t).then(function () {
       var c = $("bigC"), w = video.videoWidth, h = video.videoHeight, k = Math.min(1, 1600 / Math.max(w, h));
       c.width = Math.round(w * k); c.height = Math.round(h * k);
-      var x = c.getContext("2d"); x.drawImage(video, 0, 0, c.width, c.height); overlay(c, x, vert, flags);
+      var x = c.getContext("2d"); x.drawImage(video, 0, 0, c.width, c.height); overlay(c, x, vert, flags, boxes);
       $("bigT").textContent = fmt(t) + " · 바깥을 누르면 닫혀요";
       if (!$("big").open) $("big").showModal();
     });
@@ -623,7 +658,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     var d = video.duration, lastSig = null, nOcr = 0, reachedT = 0;
     var band = vert ? BAND.v : BAND.h, cw = vert ? SW : 960, ch = vert ? 960 : 540;
     var sm = document.createElement("canvas"); sm.width = cw; sm.height = ch; var sx = sm.getContext("2d", { willReadFrequently: true });
-    var order = [], best = {}, wk;
+    var order = [], best = {}, wk, lowSubs = [];   // lowSubs: 롱폼에서 하늘색 칸보다 아래에 읽힌 자막 줄(2026-11-23 3번 가이드 밖 자막)
     prog("prep", 0.88, "처음 한 번은 글자 읽기 도구를 받아요");
     return ocrWorker().then(function (w) {
       wk = w;
@@ -641,9 +676,10 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         lastSig = sig; nOcr++;
         var vw = video.videoWidth, vh = video.videoHeight;
         var x0 = (band[0] - 0.03) * vw, y0 = (band[1] - 0.012) * vh, ww = (band[2] - band[0] + 0.06) * vw, hh = (band[3] - band[1] + 0.024) * vh;
+        if (!vert) hh = (0.965 - (band[1] - 0.012)) * vh;   // 롱폼은 하늘색 칸 아래로 내려간 자막도 보이게 아래로 더(2026-11-23)
         var k = Math.min(1, 1400 / ww), c = document.createElement("canvas"); c.width = Math.round(ww * k); c.height = Math.round(hh * k);
         c.getContext("2d").drawImage(video, x0, y0, ww, hh, 0, 0, c.width, c.height);
-        queue.push({ t: t, c: c });
+        queue.push({ t: t, c: c, y0: y0 / vh, hn: hh / vh, x0: x0 / vw, wn: ww / vw });
         if (playing && queue.length >= 20) { pausedQ = true; video.pause(); }   // 읽기가 밀리면 재생을 잠깐 멈춤(메모리)
         pump();
       }
@@ -658,6 +694,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       function readOne(job) {
         var t = job.t, crop = job.c, cx = crop.getContext("2d", { willReadFrequently: true });
         var shot = crop.toDataURL("image/jpeg", 0.75);
+        var keepC = null; if (!vert) { keepC = document.createElement("canvas"); keepC.width = crop.width; keepC.height = crop.height; keepC.getContext("2d").drawImage(crop, 0, 0); }
         // 흰 글자만 남기기: 밝고 색이 없는 점 중 가까이에 어두운 점이 있는 것(글자 획)만. 넓은 흰 면(노트북·벽)은 지운다(2026-11-22)
         var CW = crop.width, CH = crop.height, id = cx.getImageData(0, 0, CW, CH), px = id.data, L = new Float32Array(CW * CH), on = new Uint8Array(CW * CH);
         for (var q = 0, n2 = 0; q < px.length; q += 4, n2++) {
@@ -685,6 +722,18 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
             var s = cleanLine(ln.text || "");
             if (!goodLine(s, ln.confidence, 55)) return;
             var weak = ln.confidence < 75;
+            // 롱폼: 또렷하게 읽은 줄의 가운데가 하늘색 칸 아래 끝보다 아래면 가이드 밖 자막
+            if (!vert && !weak && ln.bbox && keepC) {
+              var by0 = job.y0 + ln.bbox.y0 / crop.height * job.hn, by1 = job.y0 + ln.bbox.y1 / crop.height * job.hn;
+              if ((by0 + by1) / 2 > LONG.sub[3] + 0.006 && lowSubs.length < 40) {
+                var ec = document.createElement("canvas"); ec.width = keepC.width; ec.height = keepC.height;
+                var ex = ec.getContext("2d"); ex.drawImage(keepC, 0, 0);
+                var gy = (LONG.sub[3] - job.y0) / job.hn * ec.height;   // 하늘색 칸 아래 끝 선
+                ex.strokeStyle = "#00beff"; ex.lineWidth = 2; ex.setLineDash([8, 6]); ex.beginPath(); ex.moveTo(0, gy); ex.lineTo(ec.width, gy); ex.stroke();
+                emphasize(ex, ec.width, ec.height, [[ln.bbox.x0 / ec.width - 0.01, ln.bbox.y0 / ec.height - 0.06, ln.bbox.x1 / ec.width + 0.01, ln.bbox.y1 / ec.height + 0.06]]);
+                lowSubs.push({ t: t, s: s, img: ec.toDataURL("image/jpeg", 0.75) });
+              }
+            }
             var key = s.replace(/[^가-힣A-Za-z0-9]/g, ""), sc = ln.confidence + 1.5 * (s.match(/ /g) || []).length;
             var low = (ln.words || []).filter(function (w) { return w.confidence < 80; }).map(function (w) { return w.text.replace(/[^가-힣A-Za-z0-9]/g, ""); }).filter(Boolean);
             // 같은 자막을 여러 번 읽었으면: 더 길게(덜 잘리게) 읽은 쪽, 길이가 비슷하면 더 확실하게 읽은 쪽 하나만 남긴다(2026-11-22)
@@ -708,8 +757,9 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
             if (done) return;
             if (my !== token || skipOcr) return fin(true);
             var t = meta.mediaTime;
-            // 기기가 못 따라가 장면이 0.45초 넘게 건너뛰면 재생 속도를 반으로(최저 2배속). 4K는 8배속에서 장면을 버린다
-            if (prevT >= 0 && t - prevT > 0.45) { if (++bigGap >= 2 && video.playbackRate > 2) { video.playbackRate = video.playbackRate / 2; bigGap = 0; } } else bigGap = 0;
+            // 기기가 못 따라가 장면이 0.75초 넘게 건너뛰면 재생 속도를 반으로(최저 2배속). 0.6초마다 한 장면만 있으면 되므로
+            //  0.75초까지는 그대로 둔다(2026-11-23, 전엔 0.45초라 4K가 바로 4배속으로 내려갔음)
+            if (prevT >= 0 && t - prevT > 0.75) { if (++bigGap >= 2 && video.playbackRate > 2) { video.playbackRate = video.playbackRate / 2; bigGap = 0; } } else bigGap = 0;
             prevT = t;
             if (lastT < 0 || t - lastT >= 0.6 - 0.001) { lastT = t; grab(t); showProg(t); }
             video.requestVideoFrameCallback(onFrame);
@@ -760,6 +810,13 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         var g = imgAt[f.t];
         add(f.lv, f.t + "  " + f.wf + " → " + f.wt, f.why + (f.lv === "chk" ? " (확인)" : ""), g ? [{ src: g.src, t: g.t, sub: true }] : null);
       });
+      if (lowSubs.length) {
+        lowSubs.sort(function (a, b) { return a.t - b.t; });
+        var la = lowSubs[0].t, lb = lowSubs[lowSubs.length - 1].t, lp = lowSubs.length <= 3 ? lowSubs : [lowSubs[0], lowSubs[Math.floor(lowSubs.length / 2)], lowSubs[lowSubs.length - 1]];
+        add("chk", (la === lb ? fmt(la) : fmt(la) + "~" + fmt(lb)) + " · 자막이 하늘색 칸보다 아래에 있어요" + (lowSubs.length > 1 ? " (" + lowSubs.length + "줄)" : ""),
+          "자막을 가이드의 하늘색 칸 안으로 올려 주세요 · 캡처의 빨간 상자가 그 자막, 하늘색 점선이 칸 아래 끝이에요",
+          lp.map(function (g) { return { src: g.img, t: g.t, sub: true }; }));
+      }
       if (fs.length > MAXF) add("chk", "자막 글 고칠 곳이 " + (fs.length - MAXF) + "개 더 있어요", "3번에서 전부 볼 수 있어요");
       if (skipOcr && reachedT < d - 1) add("chk", "자막 글은 " + fmt(reachedT) + "까지만 읽었어요", "나머지는 3번에 자막 글을 붙여 넣으면 점검할 수 있어요");
       if (!fs.length) add("ok", "자막 글에서 자주 틀리는 건 안 보여요", "자막 " + lines.length + "줄을 읽었어요 · 짧은 자막(「네?」 같은)은 건너뛰어요");
