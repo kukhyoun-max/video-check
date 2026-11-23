@@ -464,13 +464,12 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     subF.forEach(function (f) { var r = readability(f, band); f.rd = r; if (r) hs.push(r.h); f.dim = !!(r && r.weak >= 0.25); });
     var dimRuns = [], dc = null;
     fr.forEach(function (f, i) { if (!f.dim) { dc = null; return; } if (!dc || dc.last !== i - 1) { dc = { fs: [] }; dimRuns.push(dc); } dc.fs.push(f); dc.last = i; });
-    dimRuns.slice(0, 4).forEach(function (r) {
-      var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t, pick = r.fs.length <= 3 ? r.fs : [r.fs[0], r.fs[Math.floor(r.fs.length / 2)], r.fs[r.fs.length - 1]];
-      add("chk", (a === b ? fmt(a) : fmt(a) + "~" + fmt(b)) + " · 자막 뒤가 밝아 잘 안 읽힐 수 있어요",
-        "그 구간만 자막 뒤에 어두운 곳이 오게 구도를 바꾸거나, 두 줄용(진한) 자막 그라데이션을 써 주세요",
-        pick.map(function (f) { return { src: thumb(f, vert, true), t: f.t, flags: [] }; }));
-    });
-    if (dimRuns.length > 4) add("chk", "자막 뒤가 밝은 구간이 " + (dimRuns.length - 4) + "곳 더 있어요", "아래 장면에서 흰 배경 위 자막을 봐 주세요");
+    if (dimRuns.length) {   // 구간마다 따로 쓰지 않고 한 항목에 구간·장면만(2026-11-23 담당자 「구간/이미지만」)
+      var dr = dimRuns.slice(0, 6), dt = dr.map(function (r) { var a = r.fs[0].t, b = r.fs[r.fs.length - 1].t; return a === b ? fmt(a) : fmt(a) + "~" + fmt(b); });
+      add("chk", "자막 뒤가 밝아요 · " + dt.join(", ") + (dimRuns.length > 6 ? " 외 " + (dimRuns.length - 6) + "곳" : ""),
+        "어두운 배경으로 구도를 바꾸거나 진한 자막 그라데이션을 써 주세요",
+        dr.map(function (r) { var f = r.fs[Math.floor(r.fs.length / 2)]; return { src: thumb(f, vert, true), t: f.t, flags: [], big: true }; }));
+    }
     if (hs.length >= 3) {
       hs.sort(function (a, b) { return a - b; });
       var mh = hs[Math.floor(hs.length / 2)], std = vert ? 0.028 : 0.046, pct = Math.round(mh / std * 100);
@@ -490,7 +489,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         var pick = r.fs.length <= 4 ? r.fs : [r.fs[0], r.fs[Math.floor(r.fs.length / 3)], r.fs[Math.floor(r.fs.length * 2 / 3)], r.fs[r.fs.length - 1]];
         // 꼭(✕)은 자막 끝이 버튼 줄로 넘어간 것만. 넓은 가림 영역 판정은 흰 배경·노트북에도 걸려 확인(!)으로(2026-11-22 지난 검수 대조)
         add(r.zones.subR && r.fs.length >= 1 ? "bad" : "chk", (a === b ? fmt(a) : fmt(a) + "~" + fmt(b)) + " · " + names + " 쪽에 글자가 있어요",
-          r.zones.subR ? "빨간 상자 자리를 빨간 선 안으로 옮겨 주세요" : "빨간 상자 자리를 빨간 선 안으로 옮겨 주세요 · 배경이면 그대로 둬도 돼요",
+          "",
           pick.map(function (f) { return { src: thumb(f, vert), t: f.t, flags: f.flags, boxes: f.boxes, big: true }; }));
       });
       if (!runs.length) add("ok", "가림 영역에 걸린 글자가 안 보여요", "얼굴이 빨간 선에 걸리지 않는지는 아래 장면에서 한 번 봐 주세요");
@@ -806,18 +805,18 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       // 편집 가이드 레이어(「말 자막은 여기에 써주세요」 등)를 끄지 않고 내보낸 것(2026-11-23 아바타 롱폼 7:40~11:49)
       var GL = /자막은\s?여기|여기에\s?써\s?주세요|기본\s?텍스트|로고\s?자리|데드\s?존/, gk = order.filter(function (k) { return GL.test(best[k].s); });
       if (gk.length) { var g0 = best[gk[0]], g1 = best[gk[gk.length - 1]];
-        add("bad", "편집 가이드 글자가 영상에 남아 있어요 (" + fmt(g0.t) + (gk.length > 1 ? "~" + fmt(g1.t) : "") + ")", "「" + g0.s.replace(/^[^가-힣]+/, "").slice(0, 24) + "」 같은 가이드 레이어를 끄고 다시 내보내 주세요", [{ src: g0.img, t: g0.t, sub: true, big: true }]); }
+        add("bad", "편집 가이드 글자가 영상에 남아 있어요 (" + fmt(g0.t) + (gk.length > 1 ? "~" + fmt(g1.t) : "") + ")", "", [{ src: g0.img, t: g0.t, sub: true, big: true }]); }
       var fs = subCheck.found || [], MAXF = 20;
       // 고칠 곳마다 한 줄: 「0:12  재학중 → 재학 중」 + 그 순간 자막 캡처
       fs.slice(0, MAXF).forEach(function (f) {
         var g = imgAt[f.t];
-        add(f.lv, f.t + "  " + f.wf + " → " + f.wt, f.why + (f.lv === "chk" ? " (확인)" : ""), g ? [{ src: g.src, t: g.t, sub: true }] : null);
+        add(f.lv, f.t + "  " + f.wf + " → " + f.wt + (f.why.indexOf(BLUR) >= 0 ? "  (흐리게 읽힘)" : ""));   // 캡처·설명 없이 한 줄(2026-11-23 담당자 「00:00 활동 하다 -> 활동하다 이렇게만」)
       });
       if (lowSubs.length) {
         lowSubs.sort(function (a, b) { return a.t - b.t; });
         var la = lowSubs[0].t, lb = lowSubs[lowSubs.length - 1].t, lp = lowSubs.length <= 3 ? lowSubs : [lowSubs[0], lowSubs[Math.floor(lowSubs.length / 2)], lowSubs[lowSubs.length - 1]];
         add("chk", (la === lb ? fmt(la) : fmt(la) + "~" + fmt(lb)) + " · 자막이 하늘색 칸보다 아래에 있어요" + (lowSubs.length > 1 ? " (" + lowSubs.length + "줄)" : ""),
-          "빨간 상자 자막을 하늘색 점선 위로 올려 주세요",
+          "",
           lp.map(function (g) { return { src: g.img, t: g.t, sub: true, big: true }; }));
       }
       if (fs.length > MAXF) add("chk", "자막 글 고칠 곳이 " + (fs.length - MAXF) + "개 더 있어요", "3번에서 전부 볼 수 있어요");
