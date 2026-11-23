@@ -271,7 +271,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     }).then(function () {
       if (my !== token) return;
       var vert = checkSpec();
-      ocrWorker().catch(function () {}); padFetch().catch(function () {});   // 글자 읽기 도구는 장면 보는 동안 미리 받는다(2026-11-23 「로딩 시간이 너무 길다」)
+      ocrWorker().catch(function () {});   // 글자 읽기 도구는 장면 보는 동안 미리 받는다(2026-11-23 「로딩 시간이 너무 길다」)
       if (vert) faceTool().catch(function () {});   // 얼굴 찾기 도구도 미리(2026-11-23 장면 칸 대신 걸린 것만 결과에)
       return scanFrames(my, vert).then(function (fr) {
         if (my !== token) return;
@@ -728,7 +728,14 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   //   이 모델은 띄어쓰기를 자주 빠뜨려서 띄어쓰기는 Tesseract 쪽을 쓴다.
   //   모델 파일(13MB)은 장면을 보는 동안 받아만 두고, 모델 준비·다시 읽기는 장면 보기가 끝난 뒤에 한다.
   //   장면 보는 중에 돌리면 화면이 잠깐씩 멈춰 8배속 재생이 4배속으로 떨어지고 끝까지 안 올라와 5분 영상이 45초 → 81초가 됐다
+  //   (2026-11-24 담당자 아이폰: 넣고 나서 첫 화면으로 돌아감 = 메모리가 모자라 브라우저가 페이지를 닫음 → 모델은 장면 보기가 끝난 뒤에 받고,
+  //    메모리 예약을 끄고, 다시 읽기 도중에 페이지가 죽었으면 그 기기에선 다음부터 다시 읽기를 건너뛴다)
   var padF = null, padP = null, ORT = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+  if (/[?&]pad=1/.test(location.search)) lsSet("padOff", null);   // 주소 끝에 ?pad=1을 붙이면 다시 켠다
+  var padOff = lsGet("padOff") === "1";
+  if (lsGet("padRunning") === "1") { lsSet("padRunning", null); lsSet("padOff", "1"); padOff = true; }
   function padFetch() {
     if (!padF) {
       padF = Promise.all([
@@ -748,7 +755,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         ort.env.wasm.wasmPaths = ORT; ort.env.wasm.numThreads = 1; ort.env.logLevel = "error";
         return padFetch();
       }).then(function (a) {
-        return ort.InferenceSession.create(new Uint8Array(a[0]), { executionProviders: ["wasm"] }).then(function (sess) {
+        return ort.InferenceSession.create(new Uint8Array(a[0]), { executionProviders: ["wasm"], enableCpuMemArena: false, enableMemPattern: false, graphOptimizationLevel: "basic" }).then(function (sess) {
           return { sess: sess, chars: [""].concat(a[1].split("\n")).concat([" "]) };
         });
       });
@@ -757,7 +764,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     return padP;
   }
   function padRead(pd, src, x0, y0, w, h) {   // src(캔버스·이미지)의 한 줄 자리 → { s: 글자, p: 평균 확신 }
-    var H = 48, W = Math.max(16, Math.min(1600, Math.round(w * H / h)));
+    var H = 48, W = Math.max(16, Math.min(1000, Math.round(w * H / h)));
     var c = document.createElement("canvas"); c.width = W; c.height = H; var cx = c.getContext("2d");
     cx.drawImage(src, x0, y0, w, h, 0, 0, W, H);
     var d = cx.getImageData(0, 0, W, H).data, f = new Float32Array(3 * H * W), n = H * W;
@@ -946,9 +953,10 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         .then(function () { scanDone = true; return new Promise(function (res) { waitQ = res; pump(); }); });
     }).then(function () {
       // 장면 보기가 끝난 뒤 읽은 줄마다 Paddle로 글자를 다시 읽는다(도구를 못 받으면 Tesseract 글 그대로)
-      if (my !== token || skipOcr) return;
+      if (my !== token || skipOcr || padOff) return;
       var cand = order.filter(function (k) { return best[k].bb; }).slice(0, 400);
       if (!cand.length) return;
+      lsSet("padRunning", "1");
       var nDone = 0; prog("ocr", 0.99, "자막 글자 다시 읽는 중");
       return padTool().then(function (pd) {
         return cand.reduce(function (pr, k) {
@@ -968,7 +976,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
             });
           });
         }, Promise.resolve());
-      }).catch(function () {});
+      }).catch(function () {}).then(function () { lsSet("padRunning", null); });
     }).then(function () {
       if (my !== token) return;
       var lines = order.map(function (k) { return fmt(best[k].t) + " " + best[k].s; });
