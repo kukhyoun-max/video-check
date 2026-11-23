@@ -737,7 +737,9 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
   if (/[?&]pad=1/.test(location.search)) lsSet("padOff", null);   // 주소 끝에 ?pad=1을 붙이면 다시 켠다
-  var padOff = lsGet("padOff") === "1";
+  // 아이폰·아이패드는 다시 읽기를 하면 페이지가 꺼져서(2026-11-24 네 번) 기본으로 건너뛴다. ?pad=1이면 시험용으로 켠다
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var padOff = lsGet("padOff") === "1" || (isIOS && !/[?&]pad=1/.test(location.search));
   // 다시 읽기 도중 페이지가 닫혔으면 어느 단계였는지 첫 화면에 보여 준다(2026-11-24 아이폰에서 원인 찾기)
   if (lsGet("padRunning") === "1") {
     lsSet("padRunning", null); lsSet("padOff", "1"); padOff = true;
