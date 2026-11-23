@@ -24,7 +24,7 @@
   --paper: #121417; --panel: #1b1e22; --ink: #eceef0; --soft: #9aa1a9; --line: #30353b; --chip: #24282d; color-scheme: dark } }
 :root[data-theme="dark"] { --paper: #121417; --panel: #1b1e22; --ink: #eceef0; --soft: #9aa1a9; --line: #30353b; --chip: #24282d; color-scheme: dark }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--ui); font-size: 14px; line-height: 1.55; letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: anywhere; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--ui); font-size: 14px; line-height: 1.55; letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: break-word; }   /* anywhere는 가운데 정렬 칸에서 낱자로 끊김(2026-11-23 휴대폰) */
 .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; display: flex; flex-direction: column; gap: 16px; }
 h1 { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.1; margin: 4px 0 0; letter-spacing: -0.02em; }
 .drop .big { font-size: 15px; font-weight: 700; margin: 0; }
@@ -124,7 +124,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     <div class="drop" id="drop">
       <p class="big">검수 통과각인지 볼까요?</p>
       <label class="file">영상 열기<input type="file" id="vfile"></label>
-      <p class="hint">여기로 끌어다 놓아도 돼요 · 자막까지 넣고 내보낸 최종본이요</p>
+      <p class="hint">여기로 끌어다 놓아도 돼요<br>자막까지 넣고 내보낸 최종본이요</p>
       <p class="hint">영상은 이 화면 밖으로 안 나가요</p>
     </div>
     <div class="cur" id="cur" hidden><p class="hint" id="curName"></p><label class="file">다른 영상 넣기<input type="file" id="vfile2"></label></div>
