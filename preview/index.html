@@ -271,7 +271,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     }).then(function () {
       if (my !== token) return;
       var vert = checkSpec();
-      ocrWorker().catch(function () {});   // 글자 읽기 도구는 장면 보는 동안 미리 받는다(2026-11-23 「로딩 시간이 너무 길다」)
+      ocrWorker().catch(function () {}); padFetch().catch(function () {});   // 글자 읽기 도구는 장면 보는 동안 미리 받는다(2026-11-23 「로딩 시간이 너무 길다」)
       if (vert) faceTool().catch(function () {});   // 얼굴 찾기 도구도 미리(2026-11-23 장면 칸 대신 걸린 것만 결과에)
       return scanFrames(my, vert).then(function (fr) {
         if (my !== token) return;
@@ -723,6 +723,72 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     return s;
   }
   function sigDiff(a, b) { var df = 0, sum = 0; for (var i = 0; i < a.length; i++) { df += Math.abs(a[i] - b[i]); sum += a[i] + b[i]; } return sum ? df / sum : 0; }
+  // ── 글자 다시 읽기: PaddleOCR 한국어 모델(korean_PP-OCRv5_mobile_rec, Apache-2.0)을 브라우저(onnxruntime-web)에서 돌린다(2026-11-24).
+  //   Tesseract는 줄 위치·띄어쓰기를, 이 모델은 글자를 맡는다. 「다나까」 정답 78줄에서 정확히 읽은 줄 35~39 → 62~66.
+  //   이 모델은 띄어쓰기를 자주 빠뜨려서 띄어쓰기는 Tesseract 쪽을 쓴다.
+  //   모델 파일(13MB)은 장면을 보는 동안 받아만 두고, 모델 준비·다시 읽기는 장면 보기가 끝난 뒤에 한다.
+  //   장면 보는 중에 돌리면 화면이 잠깐씩 멈춰 8배속 재생이 4배속으로 떨어지고 끝까지 안 올라와 5분 영상이 45초 → 81초가 됐다
+  var padF = null, padP = null, ORT = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
+  function padFetch() {
+    if (!padF) {
+      padF = Promise.all([
+        fetch("ocr/korean_rec.onnx").then(function (r) { if (!r.ok) throw new Error("model"); return r.arrayBuffer(); }),
+        fetch("ocr/korean_dict.txt").then(function (r) { if (!r.ok) throw new Error("dict"); return r.text(); })
+      ]);
+      padF.catch(function () { padF = null; });
+    }
+    return padF;
+  }
+  function padTool() {
+    if (!padP) {
+      padP = new Promise(function (res, rej) {
+        if (window.ort) return res();
+        var sc = document.createElement("script"); sc.src = ORT + "ort.min.js"; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc);
+      }).then(function () {
+        ort.env.wasm.wasmPaths = ORT; ort.env.wasm.numThreads = 1; ort.env.logLevel = "error";
+        return padFetch();
+      }).then(function (a) {
+        return ort.InferenceSession.create(new Uint8Array(a[0]), { executionProviders: ["wasm"] }).then(function (sess) {
+          return { sess: sess, chars: [""].concat(a[1].split("\n")).concat([" "]) };
+        });
+      });
+      padP.catch(function () { padP = null; });
+    }
+    return padP;
+  }
+  function padRead(pd, src, x0, y0, w, h) {   // src(캔버스·이미지)의 한 줄 자리 → { s: 글자, p: 평균 확신 }
+    var H = 48, W = Math.max(16, Math.min(1600, Math.round(w * H / h)));
+    var c = document.createElement("canvas"); c.width = W; c.height = H; var cx = c.getContext("2d");
+    cx.drawImage(src, x0, y0, w, h, 0, 0, W, H);
+    var d = cx.getImageData(0, 0, W, H).data, f = new Float32Array(3 * H * W), n = H * W;
+    for (var i = 0; i < n; i++) { f[i] = d[i * 4 + 2] / 127.5 - 1; f[n + i] = d[i * 4 + 1] / 127.5 - 1; f[2 * n + i] = d[i * 4] / 127.5 - 1; }   // BGR 순서
+    var feeds = {}; feeds[pd.sess.inputNames[0]] = new ort.Tensor("float32", f, [1, 3, H, W]);
+    return pd.sess.run(feeds).then(function (o) {
+      var t = o[pd.sess.outputNames[0]], T = t.dims[1], C = t.dims[2], v = t.data, out = "", ps = [], last = -1;
+      for (var k = 0; k < T; k++) {
+        var bi = 0, bv = -1; for (var j = 0; j < C; j++) if (v[k * C + j] > bv) { bv = v[k * C + j]; bi = j; }
+        if (bi !== last && bi !== 0) { out += pd.chars[bi] || ""; ps.push(bv); }
+        last = bi;
+      }
+      return { s: out.trim(), p: ps.length ? ps.reduce(function (a, b) { return a + b; }, 0) / ps.length : 0 };
+    });
+  }
+  // Tesseract 줄(띄어쓰기 자리)과 Paddle 줄(글자)을 글자 단위로 맞춰 합친다
+  function mergeRead(T, P) {
+    var a = [], sp = false, i, j;
+    for (i = 0; i < T.length; i++) { if (T[i] === " ") { sp = a.length > 0; continue; } a.push({ c: T[i], sp: sp }); sp = false; }
+    var b = P.replace(/\s+/g, "").split(""), n = a.length, m = b.length, D = [];
+    for (i = 0; i <= n; i++) { D.push(new Array(m + 1)); D[i][0] = i; }
+    for (j = 0; j <= m; j++) D[0][j] = j;
+    for (i = 1; i <= n; i++) for (j = 1; j <= m; j++) D[i][j] = Math.min(D[i - 1][j] + 1, D[i][j - 1] + 1, D[i - 1][j - 1] + (a[i - 1].c === b[j - 1] ? 0 : 1));
+    var outp = [], ii = n, jj = m;
+    while (ii > 0 || jj > 0) {
+      if (ii > 0 && jj > 0 && D[ii][jj] === D[ii - 1][jj - 1] + (a[ii - 1].c === b[jj - 1] ? 0 : 1)) { outp.unshift((a[ii - 1].sp ? " " : "") + b[jj - 1]); ii--; jj--; }
+      else if (jj > 0 && D[ii][jj] === D[ii][jj - 1] + 1) { outp.unshift(b[jj - 1]); jj--; }
+      else { if (a[ii - 1].sp && outp.length) outp[0] = " " + outp[0].replace(/^ /, ""); ii--; }
+    }
+    return { s: outp.join("").trim(), sim: 1 - D[n][m] / Math.max(1, Math.max(n, m)) };
+  }
   function readSubs(my, vert) {
     var d = video.duration, lastSig = null, nOcr = 0, reachedT = 0;
     var band = vert ? BAND.v : BAND.h, cw = vert ? SW : 960, ch = vert ? 960 : 540;
@@ -826,11 +892,11 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
             var low = (ln.words || []).filter(function (w) { return w.confidence < 80; }).map(function (w) { return w.text.replace(/[^가-힣A-Za-z0-9]/g, ""); }).filter(Boolean);
             // 같은 자막을 여러 번 읽었으면: 더 길게(덜 잘리게) 읽은 쪽, 길이가 비슷하면 더 확실하게 읽은 쪽 하나만 남긴다(2026-11-22)
             var near = best[key] ? key : order.filter(function (o) { return Math.abs(o.length - key.length) <= 6 && (o.indexOf(key) >= 0 || key.indexOf(o) >= 0 || (key.length >= 6 && lev(o, key) <= Math.max(2, Math.round(key.length * 0.2)))); })[0];
-            if (!near) { best[key] = { t: t, s: s, img: shot, sc: sc, low: low, weak: weak }; order.push(key); return; }
+            if (!near) { best[key] = { t: t, s: s, img: shot, sc: sc, low: low, weak: weak, bb: ln.bbox }; order.push(key); return; }
             var g = best[near], longer = key.length >= near.length + 3, shorter = near.length >= key.length + 3;
             if (weak && !g.weak) return;   // 또렷하게 읽은 게 있으면 흐린 것으로 바꾸지 않음
             if (!(g.weak && !weak) && (shorter || (!longer && sc <= g.sc))) return;
-            delete best[near]; best[key] = { t: g.t, s: s, img: g.img, sc: sc, low: low, weak: weak }; order[order.indexOf(near)] = key;
+            delete best[near]; best[key] = { t: g.t, s: s, img: g.img, sc: sc, low: low, weak: weak, bb: g.img === shot ? ln.bbox : g.bb }; order[order.indexOf(near)] = key;
           }); }); });
         });
       }
@@ -878,6 +944,31 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
       }
       return scanPlay().then(function (ok) { return ok ? null : scanSeek(reachedT > 0 ? reachedT + 0.6 : 0.3); })
         .then(function () { scanDone = true; return new Promise(function (res) { waitQ = res; pump(); }); });
+    }).then(function () {
+      // 장면 보기가 끝난 뒤 읽은 줄마다 Paddle로 글자를 다시 읽는다(도구를 못 받으면 Tesseract 글 그대로)
+      if (my !== token || skipOcr) return;
+      var cand = order.filter(function (k) { return best[k].bb; }).slice(0, 400);
+      if (!cand.length) return;
+      var nDone = 0; prog("ocr", 0.99, "자막 글자 다시 읽는 중");
+      return padTool().then(function (pd) {
+        return cand.reduce(function (pr, k) {
+          return pr.then(function () {
+            if (my !== token || skipOcr) return;
+            var e = best[k]; nDone++; if (nDone % 5 === 0) $("loadMsg").textContent = "자막 글자 다시 읽는 중 " + nDone + "/" + cand.length;
+            return new Promise(function (res) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = function () { res(null); }; im.src = e.img; }).then(function (im) {
+              if (!im) return;
+              var b = e.bb, ph = (b.y1 - b.y0) * 0.25, pw = (b.y1 - b.y0) * 0.4, x0 = Math.max(0, b.x0 - pw), y0 = Math.max(0, b.y0 - ph);
+              return padRead(pd, im, x0, y0, Math.min(im.naturalWidth, b.x1 + pw) - x0, Math.min(im.naturalHeight, b.y1 + ph) - y0).then(function (q) {
+                var P = q.s.replace(/^[^가-힣A-Za-z0-9]+|[^가-힣A-Za-z0-9?!.]+$/g, "");
+                if (q.p < 0.8 || (P.match(/[가-힣]/g) || []).length < 2) return;
+                var mg = mergeRead(e.s, P);
+                if (mg.sim >= 0.5) { e.s = mg.s; if (q.p >= 0.9) { e.weak = false; e.low = []; } }
+                else if (q.p >= 0.9) { e.s = P; e.weak = true; }   // Tesseract가 많이 틀렸으면 Paddle 글 그대로(띄어쓰기는 못 믿음 → 흐림)
+              });
+            });
+          });
+        }, Promise.resolve());
+      }).catch(function () {});
     }).then(function () {
       if (my !== token) return;
       var lines = order.map(function (k) { return fmt(best[k].t) + " " + best[k].s; });
@@ -974,7 +1065,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
     { re: /([가-힣])거(?=[야예에요지면니라든고나를의도,.!?~\s]|$)/g, to: function (m) { return m[1] + " 거"; }, why: "「거(것)」는 앞말과 띄어 써요(할 거예요)", lv: "bad",
       when: function (m, s) { var pre = s.slice(Math.max(0, m.index - 1), m.index + 1); return "할을볼갈줄될올는은던된낼쓸살잘먹".indexOf(m[1]) >= 0 && !/(선|증|근|과|수|화|논)$/.test(pre); } },
     // 「말고」「때」 띄어쓰기
-    { re: /([가-힣])말고/g, to: function (m) { return m[1] + " 말고"; }, why: "「말고」는 앞말과 띄어 써요(오빠 말고)", lv: "bad", when: function (m) { return "결주종고".indexOf(m[1]) < 0; } },
+    { re: /([가-힣])말고/g, to: function (m) { return m[1] + " 말고"; }, why: "「말고」는 앞말과 띄어 써요(오빠 말고)", lv: "bad", when: function (m, line) { return "결주종고".indexOf(m[1]) < 0 && line.substr(m.index + m[0].length, 1) !== "사"; } },   // 기말고사·중간고사 X(2026-11-23 「다나까」 4:40)
     { re: /([가-힣]{2})때(?![문때])/g, to: function (m) { return m[1] + " 때"; }, why: "「때」는 앞말과 띄어 써요(공강 때) · 점심때·저녁때는 붙여요", lv: "chk",
       when: function (m) { return jong(m[1].charAt(1)) !== 8 && !/(점심|저녁|아침|끼니|요맘|이맘|그맘|한창|어릴|그날|이날|저번|지난|접때|한참|여름|겨울|이번|다음|그쯤|그럴|이럴|저럴|그래|이래)$/.test(m[1]) && !/[그이저한제]$/.test(m[1]); } },
     // 「-어하다」는 붙여 씀(신기해하다, 좋아하다)
