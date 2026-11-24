@@ -281,7 +281,13 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         // 소리 크기 재기와 자막 읽기를 동시에(전엔 차례로 해서 12분 4K 롱폼에서 소리만 약 35초)
         //   아이폰은 차례로: 소리 재기가 영상 파일 전체를 메모리에 올려서, 자막 읽기 시작과 겹치면 페이지가 꺼졌다(2026-11-24 「자막 자리 0:00」에서 두 번)
         var eP = vert ? faceCheck(fr, my) : edgeCheck(fr, my);
-        if (isIOS) { sideP = eP.catch(function () {}); return Promise.all([readSubs(my, vert), eP]).then(function () { if (my !== token) return; prog("ocr", 0.995, "소리 크기 재는 중"); return checkAudio(file, my); }); }
+        if (isIOS) { sideP = eP.catch(function () {}); return Promise.all([readSubs(my, vert), eP]).then(function () {
+          if (my !== token) return; prog("ocr", 0.995, "소리 크기 재는 중");
+          // 소리 재기 전에 다 쓴 글자 읽기 도구를 닫아 메모리를 비운다
+          if (ocrP) { var o0 = ocrP; ocrP = null; o0.then(function (w) { w.terminate(); }).catch(function () {}); }
+          if (padP) { var p0 = padP; padP = null; p0.then(function (pd) { try { pd.sess.release(); } catch (e) {} }).catch(function () {}); }
+          return checkAudio(file, my);
+        }); }
         var aP = checkAudio(file, my); sideP = Promise.all([aP, eP]).catch(function () {});
         return Promise.all([aP, readSubs(my, vert), eP])
           ;
@@ -544,10 +550,12 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
 
   // 소리 크기: 방송 기준(EBU R128/ITU BS.1770) 통합 음량을 브라우저에서 근사로 잰다
   function checkAudio(file, my) {
-    if (file.size > 700 * 1048576) { add("chk", "파일이 커서 소리 크기는 못 쟀어요", "편집 앱의 음량 표시로 대사가 -14 LUFS 근처인지 봐 주세요"); return Promise.resolve(); }
+    // 소리 재기는 영상 파일 전체를 메모리에 올린다. 아이폰은 587MB 롱폼에서 여기서 페이지가 꺼져서(2026-11-24) 300MB까지만, 한 번 꺼진 기기는 건너뛴다
+    var big = isIOS ? 300 : 700;
+    if (file.size > big * 1048576 || (isIOS && lsGet("audioOff") === "1")) { add("chk", isIOS ? "휴대폰에선 이 영상의 소리 크기를 못 재요" : "파일이 커서 소리 크기는 못 쟀어요", (isIOS ? "PC에서 다시 넣어 보거나 " : "") + "편집 앱의 음량 표시로 대사가 -14 LUFS 근처인지 봐 주세요"); return Promise.resolve(); }
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC || !window.OfflineAudioContext) return Promise.resolve();
-    var ac = new AC();
+    var ac; if (isIOS) { try { ac = new AC({ sampleRate: 16000 }); } catch (e) { ac = new AC(); } } else ac = new AC();   // 아이폰은 낮은 샘플레이트로 풀어 메모리 1/3
     return file.arrayBuffer().then(function (buf) {
       return new Promise(function (res, rej) { ac.decodeAudioData(buf, res, rej); });
     }).then(function (ab) {
@@ -754,9 +762,10 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   function stage(x) { lsSet("padStage", x); }
   // 점검 도중 페이지가 꺼졌다 다시 열리면 어디까지 갔는지와 화면 버전을 첫 화면에 보여 준다(2026-11-24 아이폰 원인 찾기)
   (function () {
-    var v = document.createElement("p"); v.className = "hint"; v.style.opacity = ".5"; v.textContent = "화면 버전 11-24f" + (isIOS ? " · 아이폰: 다시 읽기 끔" : "") + (padOff ? "" : " · 다시 읽기 켬");
+    var v = document.createElement("p"); v.className = "hint"; v.style.opacity = ".5"; v.textContent = "화면 버전 11-24g" + (isIOS ? " · 아이폰: 다시 읽기 끔" : "") + (padOff ? "" : " · 다시 읽기 켬");
     if (lsGet("runOn") === "1") {
       lsSet("runOn", null);
+      if (/^100% 소리/.test(lsGet("runAt") || "")) lsSet("audioOff", "1");   // 소리 재다 꺼졌으면 이 기기에선 다음부터 건너뜀
       var q = document.createElement("p"); q.className = "hint"; q.style.color = "#c00";
       q.textContent = "지난번 점검이 도중에 꺼졌어요 · 마지막: " + (lsGet("runAt") || "?");
       document.getElementById("drop").appendChild(q);
