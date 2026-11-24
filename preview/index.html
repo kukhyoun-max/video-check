@@ -279,7 +279,10 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
         judgeFrames(fr, vert, file.name);
         render();
         // 소리 크기 재기와 자막 읽기를 동시에(전엔 차례로 해서 12분 4K 롱폼에서 소리만 약 35초)
-        var aP = checkAudio(file, my), eP = vert ? faceCheck(fr, my) : edgeCheck(fr, my); sideP = Promise.all([aP, eP]).catch(function () {});
+        //   아이폰은 차례로: 소리 재기가 영상 파일 전체를 메모리에 올려서, 자막 읽기 시작과 겹치면 페이지가 꺼졌다(2026-11-24 「자막 자리 0:00」에서 두 번)
+        var eP = vert ? faceCheck(fr, my) : edgeCheck(fr, my);
+        if (isIOS) { sideP = eP.catch(function () {}); return Promise.all([readSubs(my, vert), eP]).then(function () { if (my !== token) return; prog("ocr", 0.995, "소리 크기 재는 중"); return checkAudio(file, my); }); }
+        var aP = checkAudio(file, my); sideP = Promise.all([aP, eP]).catch(function () {});
         return Promise.all([aP, readSubs(my, vert), eP])
           ;
       }).then(function () { if (my !== token) return; render(); progDone(); });
@@ -751,7 +754,7 @@ textarea { font: inherit; font-size: 14px; width: 100%; box-sizing: border-box; 
   function stage(x) { lsSet("padStage", x); }
   // 점검 도중 페이지가 꺼졌다 다시 열리면 어디까지 갔는지와 화면 버전을 첫 화면에 보여 준다(2026-11-24 아이폰 원인 찾기)
   (function () {
-    var v = document.createElement("p"); v.className = "hint"; v.style.opacity = ".5"; v.textContent = "화면 버전 11-24e" + (isIOS ? " · 아이폰: 다시 읽기 끔" : "") + (padOff ? "" : " · 다시 읽기 켬");
+    var v = document.createElement("p"); v.className = "hint"; v.style.opacity = ".5"; v.textContent = "화면 버전 11-24f" + (isIOS ? " · 아이폰: 다시 읽기 끔" : "") + (padOff ? "" : " · 다시 읽기 켬");
     if (lsGet("runOn") === "1") {
       lsSet("runOn", null);
       var q = document.createElement("p"); q.className = "hint"; q.style.color = "#c00";
